@@ -34,6 +34,20 @@ emap2lig \
 
 > **Web GUI**: The web GUI requires a different installation — see the [Web GUI section](#usage-web-gui) below.
 
+### AI Agent (Skill)
+
+Let an AI coding agent guide you through the pipeline:
+
+```bash
+# Install the emap2lig skill for AI agents
+npx skills add kiharalab/Emap2lig --skill emap2lig
+```
+
+After installation, tell your AI agent: *"Run the Emap2lig pipeline on EMD-30556"*
+and the agent will use the skill to guide you through setup, detection, building,
+and result visualization.
+
+
 ## Sections (Toggle)
 
 <details>
