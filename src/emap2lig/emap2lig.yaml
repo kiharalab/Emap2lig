@@ -1,0 +1,140 @@
+defaults:
+  - _self_
+
+# GPU and performance settings
+gpu: 0
+
+# Input/output parameters
+input_map:
+output_dir:
+spatial_size: 48
+detection_batch_size: 16
+num_workers: 0
+extended_val: 16
+contour_level: null
+contour_ratio: null
+emdb_id: null
+detection_labels: ["backbone", "sidechain", "sugar", "phosphate", "base", "ligand"]
+
+# Detection model configuration
+detection_model:
+  _target_: emap2lig.model.seg.MUNetRegSeg
+  in_channels: 1
+  mid_channels: 32
+  reg_channels: 6
+  seg_channels: 6
+  spatial_size: 64
+  n_res_blocks: 1
+  attention_levels: [2]
+  channel_multipliers: [1, 2, 4]
+  n_heads: 4
+  tf_layers: 1
+  kernel_size: 5
+  num_groups: 32
+  load_pretrained: true
+  repo_id: KiharaLab/Emap2lig
+  filename: emap2lig-find-v0.0.1.safetensors
+
+fragment_detection_model:
+  _target_: emap2lig.model.seg.FragmentRegSeg
+  in_channels: 1
+  mid_channels: 32
+  reg_channels: 6
+  seg_channels: 6
+  spatial_size: 64
+  n_res_blocks: 1
+  attention_levels: [2]
+  channel_multipliers: [1, 2, 4]
+  n_heads: 4
+  tf_layers: 1
+  kernel_size: 5
+  num_groups: 32
+  load_pretrained: true
+  repo_id: KiharaLab/Emap2lig
+  filename: emap2lig-frag.safetensors
+
+# Main model configuration
+model:
+  _target_: emap2lig.model.Emap2lig
+  d_atom_in: 149
+  d_pair_in: 9
+  d_point_in: 76
+  d_atom_hidden: 128
+  d_pair_hidden: 64
+  d_point_hidden: 64
+  load_pretrained: true
+  repo_id: KiharaLab/Emap2lig
+  filename: emap2lig-build-v0.0.1.safetensors
+
+  # Compilation flags
+  is_conf_embedder_compiled: true
+  is_pairformer_compiled: false
+  is_instance_seg_compiled: true
+  is_auxiliary_module_compiled: true
+  is_diffusion_module_compiled: true
+
+  # Prediction parameters
+  predict_args:
+    multiplicity: 16
+    num_sampling_steps: 100
+    output_format: mmcif
+
+  # Conformer embedder configuration
+  conf_embedder_args:
+    atom_dim_in: ${model.d_atom_in}
+    pair_dim_in: ${model.d_pair_in}
+    atom_dim: ${model.d_atom_hidden}
+    pair_dim: ${model.d_pair_hidden}
+
+  # Pairformer configuration
+  pairformer_args:
+    atom_dim: ${model.d_atom_hidden}
+    pair_dim: ${model.d_pair_hidden}
+    num_blocks: 4
+    num_heads: 8
+    head_dim: 16
+    transition_expansion_factor: 4
+    tri_attn_use_kernel: true
+    tri_mul_use_kernel: true
+    activation_checkpointing: false
+
+  # Instance segmentation module configuration
+  instance_seg_args:
+    num_selected_points: 8192
+
+  # Auxiliary module configuration
+  auxiliary_args:
+    pair_dim: ${model.d_pair_hidden}
+    atom_dim: ${model.d_atom_hidden}
+    num_bins: 20
+    num_elements: 6
+    num_chirality_types: 7
+    num_bond_types: 5
+    num_ring_sizes: 4
+
+  # Diffusion model parameters
+  diffusion_args:
+    # EDM noise scheduling parameters
+    sigma_min: 0.0004
+    sigma_max: 48.0
+    sigma_data: 4.0
+    rho: 7.0
+    P_mean: -1.2
+    P_std: 1.2
+    gamma_0: 0.8
+    gamma_min: 1.0
+    noise_scale: 1.0
+    step_scale: 1.0
+
+    # Diffusion model configuration
+    diffusion_model_args:
+      atom_dim: ${model.d_atom_hidden}
+      pair_dim: ${model.d_pair_hidden}
+      point_dim: ${model.d_point_hidden}
+      aggregation_dim: 384
+      fourier_dim: 256
+      conditioning_transition_layers: 2
+      num_point_blocks: 8
+      num_heads: 8
+      head_dim: 16
+      activation_checkpointing: false

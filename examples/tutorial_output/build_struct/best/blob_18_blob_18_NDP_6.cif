@@ -1,0 +1,228 @@
+data_model
+_entry.id model
+_struct.entry_id model
+_struct.pdbx_model_details .
+_struct.pdbx_structure_determination_methodology computational
+_struct.title .
+_audit_conform.dict_location https://raw.githubusercontent.com/ihmwg/ModelCIF/d79c388/dist/mmcif_ma.dic
+_audit_conform.dict_name mmcif_ma.dic
+_audit_conform.dict_version 1.4.8
+#
+loop_
+_chem_comp.id
+_chem_comp.type
+_chem_comp.name
+_chem_comp.formula
+_chem_comp.formula_weight
+_chem_comp.ma_provenance
+NDP non-polymer . . . 'CCD Core'
+#
+#
+loop_
+_entity.id
+_entity.type
+_entity.src_method
+_entity.pdbx_description
+_entity.formula_weight
+_entity.pdbx_number_of_molecules
+_entity.details
+1 non-polymer man . . 1 .
+#
+#
+loop_
+_pdbx_entity_nonpoly.entity_id
+_pdbx_entity_nonpoly.name
+_pdbx_entity_nonpoly.comp_id
+_pdbx_entity_nonpoly.ma_model_mode
+1 . NDP .
+#
+#
+loop_
+_struct_asym.id
+_struct_asym.entity_id
+_struct_asym.details
+A 1 'Ligand NDP'
+#
+#
+loop_
+_pdbx_nonpoly_scheme.asym_id
+_pdbx_nonpoly_scheme.entity_id
+_pdbx_nonpoly_scheme.mon_id
+_pdbx_nonpoly_scheme.ndb_seq_num
+_pdbx_nonpoly_scheme.pdb_seq_num
+_pdbx_nonpoly_scheme.auth_seq_num
+_pdbx_nonpoly_scheme.auth_mon_id
+_pdbx_nonpoly_scheme.pdb_strand_id
+_pdbx_nonpoly_scheme.pdb_ins_code
+A 1 NDP 1 1 1 NDP A .
+#
+#
+loop_
+_ma_data.id
+_ma_data.name
+_ma_data.content_type
+_ma_data.content_type_other_details
+1 . target .
+2 Model 'model coordinates' .
+#
+#
+loop_
+_ma_target_entity.entity_id
+_ma_target_entity.data_id
+_ma_target_entity.origin
+1 1 designed
+#
+#
+loop_
+_ma_target_entity_instance.asym_id
+_ma_target_entity_instance.entity_id
+_ma_target_entity_instance.details
+A 1 'Ligand NDP'
+#
+#
+loop_
+_ma_model_list.ordinal_id
+_ma_model_list.model_name
+_ma_model_list.data_id
+_ma_model_list.model_type
+_ma_model_list.model_type_other_details
+1 Model 2 'Ab initio model' .
+#
+#
+loop_
+_ma_model_group.id
+_ma_model_group.name
+_ma_model_group.details
+1 'All models' .
+#
+#
+loop_
+_ma_model_group_link.group_id
+_ma_model_group_link.model_id
+1 1
+#
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_alt_id
+_atom_site.label_comp_id
+_atom_site.label_seq_id
+_atom_site.auth_seq_id
+_atom_site.pdbx_PDB_ins_code
+_atom_site.label_asym_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.label_entity_id
+_atom_site.auth_asym_id
+_atom_site.auth_comp_id
+_atom_site.B_iso_or_equiv
+_atom_site.pdbx_PDB_model_num
+HETATM 1 P PA . NDP . 1 ? A 77.33820 118.46718 130.74651 1.000 1 A NDP 100.000 1
+HETATM 2 O O1A . NDP . 1 ? A 76.12230 117.80147 131.43837 1.000 1 A NDP 100.000
+1
+HETATM 3 O O2A . NDP . 1 ? A 77.03265 119.27377 129.52229 1.000 1 A NDP 100.000
+1
+HETATM 4 O O5B . NDP . 1 ? A 78.03638 119.30217 131.92688 1.000 1 A NDP 100.000
+1
+HETATM 5 C C5B . NDP . 1 ? A 79.38769 119.08726 132.21620 1.000 1 A NDP 100.000
+1
+HETATM 6 C C4B . NDP . 1 ? A 80.17063 120.09989 132.97594 1.000 1 A NDP 100.000
+1
+HETATM 7 O O4B . NDP . 1 ? A 81.22822 120.36049 132.13223 1.000 1 A NDP 100.000
+1
+HETATM 8 C C3B . NDP . 1 ? A 79.38239 121.36799 133.29877 1.000 1 A NDP 100.000
+1
+HETATM 9 O O3B . NDP . 1 ? A 79.88348 121.83572 134.61891 1.000 1 A NDP 100.000
+1
+HETATM 10 C C2B . NDP . 1 ? A 79.89895 122.31313 132.25589 1.000 1 A NDP 100.000
+1
+HETATM 11 O O2B . NDP . 1 ? A 79.97152 123.61618 132.69144 1.000 1 A NDP 100.000
+1
+HETATM 12 C C1B . NDP . 1 ? A 81.31358 121.76759 132.00208 1.000 1 A NDP 100.000
+1
+HETATM 13 N N9A . NDP . 1 ? A 81.82352 122.06051 130.68983 1.000 1 A NDP 100.000
+1
+HETATM 14 C C8A . NDP . 1 ? A 81.28178 121.63847 129.54668 1.000 1 A NDP 100.000
+1
+HETATM 15 N N7A . NDP . 1 ? A 82.00431 122.08683 128.55090 1.000 1 A NDP 100.000
+1
+HETATM 16 C C5A . NDP . 1 ? A 83.18906 122.79573 129.10194 1.000 1 A NDP 100.000
+1
+HETATM 17 C C6A . NDP . 1 ? A 84.31981 123.45566 128.57176 1.000 1 A NDP 100.000
+1
+HETATM 18 N N6A . NDP . 1 ? A 84.59479 123.42372 127.29273 1.000 1 A NDP 100.000
+1
+HETATM 19 N N1A . NDP . 1 ? A 85.20188 124.01437 129.42700 1.000 1 A NDP 100.000
+1
+HETATM 20 C C2A . NDP . 1 ? A 84.97065 123.94440 130.75896 1.000 1 A NDP 100.000
+1
+HETATM 21 N N3A . NDP . 1 ? A 83.87836 123.37465 131.35995 1.000 1 A NDP 100.000
+1
+HETATM 22 C C4A . NDP . 1 ? A 83.00025 122.69666 130.49171 1.000 1 A NDP 100.000
+1
+HETATM 23 O O3 . NDP . 1 ? A 78.34343 117.23244 130.28305 1.000 1 A NDP 100.000
+1
+HETATM 24 P PN . NDP . 1 ? A 77.74634 115.78251 129.59920 1.000 1 A NDP 100.000
+1
+HETATM 25 O O1N . NDP . 1 ? A 76.48729 116.04928 129.10991 1.000 1 A NDP 100.000
+1
+HETATM 26 O O2N . NDP . 1 ? A 77.86749 114.68489 130.51547 1.000 1 A NDP 100.000
+1
+HETATM 27 O O5D . NDP . 1 ? A 78.82393 115.42033 128.57379 1.000 1 A NDP 100.000
+1
+HETATM 28 C C5D . NDP . 1 ? A 78.86205 116.15617 127.45224 1.000 1 A NDP 100.000
+1
+HETATM 29 C C4D . NDP . 1 ? A 79.75665 115.68551 126.64452 1.000 1 A NDP 100.000
+1
+HETATM 30 O O4D . NDP . 1 ? A 80.99358 115.39788 127.26984 1.000 1 A NDP 100.000
+1
+HETATM 31 C C3D . NDP . 1 ? A 79.23499 114.28625 126.12050 1.000 1 A NDP 100.000
+1
+HETATM 32 O O3D . NDP . 1 ? A 79.14043 114.38009 124.72761 1.000 1 A NDP 100.000
+1
+HETATM 33 C C2D . NDP . 1 ? A 80.13681 113.28022 126.74242 1.000 1 A NDP 100.000
+1
+HETATM 34 O O2D . NDP . 1 ? A 80.48538 112.13187 125.84396 1.000 1 A NDP 100.000
+1
+HETATM 35 C C1D . NDP . 1 ? A 81.42062 114.07451 126.92507 1.000 1 A NDP 100.000
+1
+HETATM 36 N N1N . NDP . 1 ? A 82.30036 113.46231 127.91399 1.000 1 A NDP 100.000
+1
+HETATM 37 C C2N . NDP . 1 ? A 81.98185 113.48472 129.26308 1.000 1 A NDP 100.000
+1
+HETATM 38 C C3N . NDP . 1 ? A 82.72421 112.57935 130.07544 1.000 1 A NDP 100.000
+1
+HETATM 39 C C7N . NDP . 1 ? A 82.30227 112.52827 131.44746 1.000 1 A NDP 100.000
+1
+HETATM 40 O O7N . NDP . 1 ? A 81.51382 113.41263 131.81439 1.000 1 A NDP 100.000
+1
+HETATM 41 N N7N . NDP . 1 ? A 82.69531 111.52579 132.23694 1.000 1 A NDP 100.000
+1
+HETATM 42 C C4N . NDP . 1 ? A 83.77628 111.75909 129.63525 1.000 1 A NDP 100.000
+1
+HETATM 43 C C5N . NDP . 1 ? A 83.95256 111.76837 128.23108 1.000 1 A NDP 100.000
+1
+HETATM 44 C C6N . NDP . 1 ? A 83.36057 112.76414 127.51053 1.000 1 A NDP 100.000
+1
+HETATM 45 P P2B . NDP . 1 ? A 79.03953 124.84380 132.08978 1.000 1 A NDP 100.000
+1
+HETATM 46 O O1X . NDP . 1 ? A 79.85806 126.07233 132.23643 1.000 1 A NDP 100.000
+1
+HETATM 47 O O2X . NDP . 1 ? A 78.79366 124.63934 130.72470 1.000 1 A NDP 100.000
+1
+HETATM 48 O O3X . NDP . 1 ? A 77.74684 125.03184 132.84290 1.000 1 A NDP 100.000
+1
+#
+#
+loop_
+_atom_type.symbol
+C
+N
+O
+P
+#

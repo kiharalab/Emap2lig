@@ -1,0 +1,8 @@
+- BRANCHED:
+    residues:
+    - 1. NAG
+    - 2. NAG
+    bonds:
+    - [2, "C1", 1, "O4"]
+- CCD:NAG
+- CCD:CO3

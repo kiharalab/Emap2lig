@@ -1,0 +1,1 @@
+import{r as s}from"./react-vendor-DYzG59-e.js";import{m as l}from"./index-m33nCb3t.js";function b(t,o){const[u,i]=s.useState([]),[n,f]=s.useState(null);return s.useEffect(()=>{if(!t||!o)return;let r=!0;return l(t).then(e=>{r&&i([...e].sort((a,c)=>a.id-c.id))}).catch(e=>{r&&f(String(e))}),()=>{r=!1}},[t,o]),{blobs:u,error:n}}export{b as u};

@@ -1,0 +1,147 @@
+data_model
+_entry.id model
+_struct.entry_id model
+_struct.pdbx_model_details .
+_struct.pdbx_structure_determination_methodology computational
+_struct.title .
+_audit_conform.dict_location https://raw.githubusercontent.com/ihmwg/ModelCIF/d79c388/dist/mmcif_ma.dic
+_audit_conform.dict_name mmcif_ma.dic
+_audit_conform.dict_version 1.4.8
+#
+loop_
+_chem_comp.id
+_chem_comp.type
+_chem_comp.name
+_chem_comp.formula
+_chem_comp.formula_weight
+_chem_comp.ma_provenance
+NAG non-polymer . . . 'CCD Core'
+#
+#
+loop_
+_entity.id
+_entity.type
+_entity.src_method
+_entity.pdbx_description
+_entity.formula_weight
+_entity.pdbx_number_of_molecules
+_entity.details
+1 non-polymer man . . 1 .
+#
+#
+loop_
+_pdbx_entity_nonpoly.entity_id
+_pdbx_entity_nonpoly.name
+_pdbx_entity_nonpoly.comp_id
+_pdbx_entity_nonpoly.ma_model_mode
+1 . NAG .
+#
+#
+loop_
+_struct_asym.id
+_struct_asym.entity_id
+_struct_asym.details
+A 1 'Ligand NAG'
+#
+#
+loop_
+_pdbx_nonpoly_scheme.asym_id
+_pdbx_nonpoly_scheme.entity_id
+_pdbx_nonpoly_scheme.mon_id
+_pdbx_nonpoly_scheme.ndb_seq_num
+_pdbx_nonpoly_scheme.pdb_seq_num
+_pdbx_nonpoly_scheme.auth_seq_num
+_pdbx_nonpoly_scheme.auth_mon_id
+_pdbx_nonpoly_scheme.pdb_strand_id
+_pdbx_nonpoly_scheme.pdb_ins_code
+A 1 NAG 1 1 1 NAG A .
+#
+#
+loop_
+_ma_data.id
+_ma_data.name
+_ma_data.content_type
+_ma_data.content_type_other_details
+1 . target .
+2 Model 'model coordinates' .
+#
+#
+loop_
+_ma_target_entity.entity_id
+_ma_target_entity.data_id
+_ma_target_entity.origin
+1 1 designed
+#
+#
+loop_
+_ma_target_entity_instance.asym_id
+_ma_target_entity_instance.entity_id
+_ma_target_entity_instance.details
+A 1 'Ligand NAG'
+#
+#
+loop_
+_ma_model_list.ordinal_id
+_ma_model_list.model_name
+_ma_model_list.data_id
+_ma_model_list.model_type
+_ma_model_list.model_type_other_details
+1 Model 2 'Ab initio model' .
+#
+#
+loop_
+_ma_model_group.id
+_ma_model_group.name
+_ma_model_group.details
+1 'All models' .
+#
+#
+loop_
+_ma_model_group_link.group_id
+_ma_model_group_link.model_id
+1 1
+#
+#
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_alt_id
+_atom_site.label_comp_id
+_atom_site.label_seq_id
+_atom_site.auth_seq_id
+_atom_site.pdbx_PDB_ins_code
+_atom_site.label_asym_id
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+_atom_site.occupancy
+_atom_site.label_entity_id
+_atom_site.auth_asym_id
+_atom_site.auth_comp_id
+_atom_site.B_iso_or_equiv
+_atom_site.pdbx_PDB_model_num
+HETATM 1 C C1 . NAG . 1 ? A 104.20142 63.40659 58.17837 1.000 1 A NAG 100.000 1
+HETATM 2 C C2 . NAG . 1 ? A 105.26204 63.02538 57.17192 1.000 1 A NAG 100.000 1
+HETATM 3 C C3 . NAG . 1 ? A 106.23911 62.01772 57.71543 1.000 1 A NAG 100.000 1
+HETATM 4 C C4 . NAG . 1 ? A 105.47503 60.79373 58.21844 1.000 1 A NAG 100.000 1
+HETATM 5 C C5 . NAG . 1 ? A 104.35464 61.26293 59.21393 1.000 1 A NAG 100.000 1
+HETATM 6 C C6 . NAG . 1 ? A 103.49216 60.12605 59.62725 1.000 1 A NAG 100.000 1
+HETATM 7 C C7 . NAG . 1 ? A 106.88538 64.90981 57.40944 1.000 1 A NAG 100.000 1
+HETATM 8 C C8 . NAG . 1 ? A 107.54688 66.05531 56.73892 1.000 1 A NAG 100.000 1
+HETATM 9 N N2 . NAG . 1 ? A 105.98808 64.17882 56.68013 1.000 1 A NAG 100.000 1
+HETATM 10 O O1 . NAG . 1 ? A 103.37495 64.07182 57.03050 1.000 1 A NAG 100.000 1
+HETATM 11 O O3 . NAG . 1 ? A 107.17887 61.60916 56.69261 1.000 1 A NAG 100.000 1
+HETATM 12 O O4 . NAG . 1 ? A 106.40940 59.91854 58.80745 1.000 1 A NAG 100.000 1
+HETATM 13 O O5 . NAG . 1 ? A 103.50230 62.20251 58.57820 1.000 1 A NAG 100.000 1
+HETATM 14 O O6 . NAG . 1 ? A 103.39560 59.17758 58.59554 1.000 1 A NAG 100.000 1
+HETATM 15 O O7 . NAG . 1 ? A 107.15513 64.68189 58.57277 1.000 1 A NAG 100.000 1
+#
+#
+loop_
+_atom_type.symbol
+C
+N
+O
+#

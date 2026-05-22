@@ -1,0 +1,68 @@
+line-length = 88
+target-version = "py312"
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "docs",
+    ".drawio",
+]
+
+
+[lint]
+# Core rules for code quality
+select = [
+    "E",   # pycodestyle errors (critical)
+    "F",   # pyflakes (critical)
+    "B",   # flake8-bugbear (bugs/design problems)
+    "UP",  # pyupgrade (Python upgrades)
+    "RUF", # Ruff-specific rules
+]
+
+# Ignore rules that are too strict or not relevant
+ignore = [
+    "E501",      # Line too long (handled by formatter)
+    "F821",      # undefined-name, for numpydantic
+    "F722",      # forward-annotation-syntax-error, for numpydantic
+    "B006",      # mutable argument default
+    "B008",      # Do not perform function calls in argument defaults
+    "B905",      # Unnecessary comparison
+    "RUF001",    # String contains ambiguous unicode character
+    "RUF002",    # Docstring contains ambiguous unicode character
+    "RUF003",    # Comment contains ambiguous unicode character
+    "F841",      # Local variable is assigned to but never used
+    "E731",      # Do not assign a lambda expression, use a def
+    "E741",      # Ambiguous variable name
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[lint.isort]
+combine-as-imports = true
+split-on-trailing-comma = true
