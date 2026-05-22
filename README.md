@@ -5,6 +5,9 @@
 [![HuggingFace Model](https://img.shields.io/badge/Model%20Weights-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/KiharaLab/Emap2lig)
 <br/>
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/) [![CUDA](https://img.shields.io/badge/CUDA-12%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit) [![Package manager: uv](https://img.shields.io/badge/Package%20manager-uv-DE5FE9?logo=uv&logoColor=white)](https://docs.astral.sh/uv/) [![Lint: Ruff](https://img.shields.io/badge/Lint-Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/) [![Pre-commit: prek](https://img.shields.io/badge/Pre--commit-prek-FAB040?logo=pre-commit&logoColor=white)](https://github.com/j178/prek)
+<br/>
+[![Emap2lig-Find](https://img.shields.io/badge/Emap2lig--Find-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Find)
+[![Emap2lig-Build](https://img.shields.io/badge/Emap2lig--Build-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Build)
 
 Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps.
 
@@ -13,6 +16,7 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 
 > [!IMPORTANT]
 > Emap2lig requires an NVIDIA CUDA GPU (CUDA 12/13). CPU inference is not supported.
+> **No GPU?** Use the free [KiharaLab web server](#kiharalab-web-server) instead.
 
 ## Hardware Requirements
 
@@ -419,6 +423,21 @@ When releasing new model weights or CCD data:
 2. Update the corresponding `filename` / `repo_id` in `src/emap2lig/emap2lig.yaml` (3 places: `detection_model`, `fragment_detection_model`, `model`).
 3. Update `REPO_ID` in `src/emap2lig/main.py` and `repo_id` in `src/emap2lig/data/ccd.py`.
 4. Update the CCD dictionary date string in `src/emap2lig/data/ccd.py` (`get_ccd_dict(date="...")`) if a new CCD version is uploaded.
+
+</details>
+
+<details>
+<summary><strong>KiharaLab Web Server (No GPU required)</strong></summary>
+
+Don't have a GPU? Use the KiharaLab web server — no installation needed:
+
+| Stage | URL | Description |
+|-------|-----|-------------|
+| **Find** | [em.kiharalab.org/algorithm/Emap2lig-Find](https://em.kiharalab.org/algorithm/Emap2lig-Find) | Upload a cryo-EM map, detect ligand density blobs |
+| **Build** | [em.kiharalab.org/algorithm/Emap2lig-Build](https://em.kiharalab.org/algorithm/Emap2lig-Build) | Upload detected blobs, generate atomic ligand structures |
+
+Just upload your files and download the results — all computation runs on
+Kihara Lab servers.
 
 </details>
 
