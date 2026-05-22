@@ -10,22 +10,22 @@ Error generating stack: `+i.message+`
           20% {
             opacity: 0.9;
           }
-        
+
           90% {
             opacity: 0.7;
           }
         }
-        
+
         @keyframes joyride-beacon-outer {
           0% {
             transform: scale(1);
           }
-        
+
           45% {
             opacity: 0.7;
             transform: scale(0.75);
           }
-        
+
           100% {
             opacity: 0.9;
             transform: scale(1);

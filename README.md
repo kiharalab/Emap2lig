@@ -2,8 +2,9 @@
 
 [![Kihara Lab](https://img.shields.io/badge/Kihara%20Lab-Purdue%20University-B1810B)](https://kiharalab.org/)
 [![GitHub](https://img.shields.io/badge/GitHub-kiharalab%2FEmap2lig-181717?logo=github&logoColor=white)](https://github.com/kiharalab/Emap2lig)
+[![HuggingFace Model](https://img.shields.io/badge/Model%20Weights-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/KiharaLab/Emap2lig)
 <br/>
-[![Language: Python](https://img.shields.io/badge/Language-Python-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/) [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/) [![CUDA](https://img.shields.io/badge/CUDA-12%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit) [![Package manager: uv](https://img.shields.io/badge/Package%20manager-uv-DE5FE9?logo=uv&logoColor=white)](https://docs.astral.sh/uv/) [![Lint: Ruff](https://img.shields.io/badge/Lint-Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/) [![Pre-commit: prek](https://img.shields.io/badge/Pre--commit-prek-FAB040?logo=pre-commit&logoColor=white)](https://github.com/j178/prek) [![HuggingFace Model](https://img.shields.io/badge/Model%20Weights-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/KiharaLab/Emap2lig)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/) [![CUDA](https://img.shields.io/badge/CUDA-12%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit) [![Package manager: uv](https://img.shields.io/badge/Package%20manager-uv-DE5FE9?logo=uv&logoColor=white)](https://docs.astral.sh/uv/) [![Lint: Ruff](https://img.shields.io/badge/Lint-Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/) [![Pre-commit: prek](https://img.shields.io/badge/Pre--commit-prek-FAB040?logo=pre-commit&logoColor=white)](https://github.com/j178/prek)
 
 Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps.
 
