@@ -13,9 +13,8 @@ Options:
     --no-browser     Don't auto-open the browser
 
 What it does:
-    1. Installs frontend npm dependencies (skipped if node_modules/ exists)
-    2. Builds the React frontend into frontend/dist/ (skipped if dist/ exists
-       unless --rebuild is passed)
+    1. Uses pre-built frontend/dist/ when present (no npm required)
+    2. Optionally installs npm deps and rebuilds (--rebuild, or missing dist/)
     3. Frees the chosen port if something stale is occupying it
     4. Opens http://localhost:<port> in the default browser
     5. Starts the FastAPI/Uvicorn server
@@ -68,15 +67,35 @@ def _npm_install(npm: str) -> None:
 
 
 def _npm_build(npm: str, *, rebuild: bool = False) -> None:
-    """Run `npm run build` to produce frontend/dist/.
-
-    Skipped when *dist/* already exists unless *rebuild* is ``True``.
-    """
+    """Run `npm run build` to produce frontend/dist/."""
     if DIST_DIR.is_dir() and not rebuild:
         print("  Frontend already built, skipping. (use --rebuild to force)")
         return
+    package_json = FRONTEND_DIR / "package.json"
+    if not package_json.is_file():
+        print(
+            "ERROR: frontend source (package.json) is not available.\n"
+            "  The public repo ships app/frontend/dist/ only.\n"
+            "  Remove --rebuild, or use a checkout that includes app/frontend/src/.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     print("  Building frontend...")
     subprocess.run([npm, "run", "build"], cwd=FRONTEND_DIR, check=True)
+
+
+def _prepare_frontend(*, rebuild: bool) -> None:
+    """Ensure frontend/dist exists, using npm only when necessary."""
+    if DIST_DIR.is_dir() and not rebuild:
+        print("  Using pre-built frontend (app/frontend/dist/).")
+        return
+
+    if not DIST_DIR.is_dir():
+        print("  No pre-built frontend found; building from source...")
+
+    npm = _check_npm()
+    _npm_install(npm)
+    _npm_build(npm, rebuild=rebuild)
 
 
 def _port_in_use(port: int) -> bool:
@@ -147,9 +166,13 @@ def main(
 
     # ── 1. Frontend build ────────────────────────────────────────
     print("[1/4] Preparing frontend...")
-    npm = _check_npm()
-    _npm_install(npm)
-    _npm_build(npm, rebuild=rebuild)
+    _prepare_frontend(rebuild=rebuild)
+    if not DIST_DIR.is_dir():
+        print(
+            "ERROR: frontend/dist/ is missing after prepare step.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     print()
 
     # ── 2. Free port ─────────────────────────────────────────────
