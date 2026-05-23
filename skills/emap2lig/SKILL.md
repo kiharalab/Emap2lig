@@ -13,9 +13,9 @@ metadata:
   repository: https://github.com/kiharalab/Emap2lig
   version: "0.3.1"
 compatibility: >
-  Requires Python 3.12, uv, CUDA-capable GPU (recommended), and Node.js 18+
-  for the web GUI. Model weights are downloaded from HuggingFace Hub on
-  first run (network access required).
+  Requires Python 3.12, uv, and a CUDA-capable GPU for local inference.
+  Web GUI needs clone + uv sync --group web (pre-built dist/, no Node.js).
+  Model weights download automatically from HuggingFace Hub on first run (network required).
 ---
 
 # Emap2lig Skill
