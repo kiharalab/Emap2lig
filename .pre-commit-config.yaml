@@ -1,4 +1,4 @@
-exclude: '\.drawio$'
+exclude: '(\.drawio$|/dist/)'
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
