@@ -37,7 +37,7 @@ uv run --group web python app/start.py --no-browser
 |--------|-------------|
 | `--port INT` | Port (default: `40427`) |
 | `--no-browser` | Do not open a browser tab |
-| `--rebuild` | Rebuild frontend from source (requires npm; see below) |
+| `--rebuild` | Rebuild frontend from source (requires Node.js and npm) |
 
 ## Workflow
 
@@ -48,17 +48,27 @@ uv run --group web python app/start.py --no-browser
 
 Input formats match the CLI: [Input formats](input-format.md).
 
-## Frontend development (maintainers)
+## Interactive tutorial
 
-React source under `app/frontend/src/` is **not** published on GitHub; only
-`app/frontend/dist/` is tracked. To change the UI:
+Click **Tutorial** in the top-right corner of the header to start a guided
+walkthrough of the full Emap2lig workflow (Setup → Find → Build →
+Visualization). The tutorial loads pre-computed example results, so a GPU is
+not required to follow along.
 
-1. Use a full checkout that includes `package.json` and `src/`.
-2. Install Node.js **18+** and npm.
-3. `cd app/frontend && npm install && npm run build`
-4. Commit updated `dist/` artifacts, or run `app/start.py --rebuild` locally.
+![Tutorial button in the web GUI header](../assets/tutorial-button.png)
 
-Without source, `--rebuild` cannot succeed on a dist-only clone.
+On first visit, the button is highlighted with a **New** badge. You can restart
+the tutorial anytime from the same button.
+
+### Find and Build tabs
+
+The walkthrough covers **Emap2lig-Find** (ligand blob detection with Mol*
+visualization) and **Emap2lig-Build** (per-blob ligand assignment, structure
+modeling, and ranked conformers).
+
+![Emap2lig-Find tab: detection options, blob list, and Mol* viewer](../assets/emap2lig-find.png)
+
+![Emap2lig-Build tab: ligand input, results table, and Mol* viewer](../assets/emap2lig-build.png)
 
 ## Architecture
 
