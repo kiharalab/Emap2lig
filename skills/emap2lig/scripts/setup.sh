@@ -35,7 +35,7 @@ fi
 # Install project
 echo ""
 echo "📦 Installing Emap2lig..."
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../../.."
 uv sync
 echo "✅ Installation complete"
 

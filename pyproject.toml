@@ -1,6 +1,6 @@
 [project]
 name = "emap2lig"
-version = "0.3.1"
+version = "0.3.2"
 description = "Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps."
 readme = "README.md"
 authors = [
@@ -42,7 +42,6 @@ Issues = "https://github.com/kiharalab/Emap2lig/issues"
 
 [project.scripts]
 emap2lig = "emap2lig.main:app"
-extract-yaml = "emap2lig.extract_yaml:app"
 fragment-detect = "emap2lig.frag:app"
 
 [build-system]
@@ -52,7 +51,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "ruff>=0.12.0",
-    "pre-commit>=4.2.0",
+    "prek>=0.4.3",
     "types-tqdm>=4.67.0.20250417",
     "pandas>=2.3.0",
 ]
