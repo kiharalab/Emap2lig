@@ -15,6 +15,10 @@ from .routers import detect, download, files, jobs, model
 # Resolved once at import time so it works regardless of cwd.
 _FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
+# Browsers must revalidate index.html after frontend dist rebuilds so script
+# tags point at the current hashed bundles under /assets/.
+_SPA_INDEX_CACHE_HEADERS = {"Cache-Control": "no-cache"}
+
 
 def _resolve_frontend_dist_file(dist_root: Path, full_path: str) -> Path | None:
     """Resolve a requested SPA path to a real file inside *dist_root*.
@@ -32,6 +36,21 @@ def _resolve_frontend_dist_file(dist_root: Path, full_path: str) -> Path | None:
     if not candidate.is_relative_to(dist_root):
         return None
     return candidate if candidate.is_file() else None
+
+
+def _spa_index_response(dist_root: Path) -> FileResponse:
+    """Return ``index.html`` with cache headers that force revalidation.
+
+    Args:
+        dist_root: Built frontend directory containing ``index.html``.
+
+    Returns:
+        File response for the SPA shell with ``Cache-Control: no-cache``.
+    """
+    return FileResponse(
+        dist_root / "index.html",
+        headers=_SPA_INDEX_CACHE_HEADERS,
+    )
 
 
 def create_app() -> FastAPI:
@@ -91,8 +110,10 @@ def create_app() -> FastAPI:
             # but never allow path traversal outside frontend/dist.
             candidate = _resolve_frontend_dist_file(_FRONTEND_DIST, full_path)
             if candidate is not None:
+                if candidate.name == "index.html":
+                    return FileResponse(candidate, headers=_SPA_INDEX_CACHE_HEADERS)
                 return FileResponse(candidate)
-            return FileResponse(_FRONTEND_DIST / "index.html")
+            return _spa_index_response(_FRONTEND_DIST)
 
     return app
 

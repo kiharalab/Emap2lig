@@ -92,6 +92,12 @@ uv run --group web python app/start.py
 
 Open `http://localhost:40427`. Guide: [docs/web-gui.md](docs/web-gui.md)
 
+<img
+  src="assets/emap2lig-build.png"
+  alt="Emap2lig Web GUI: Emap2lig-Build tab with ligand assignment, results table, and Mol* viewer"
+  width="800"
+/>
+
 #### Agent Skill
 
 ```bash
