@@ -1,37 +1,41 @@
 #!/usr/bin/env python3
-from loguru import logger
-from pathlib import Path
-import torch
-import numpy as np
-import typer
-import rdkit
-from rdkit import Chem
-from hydra import compose, initialize_config_dir
-from hydra.utils import instantiate
-from skimage import measure
-from torch.utils.data import DataLoader
-from lightning import Trainer, seed_everything
-import yaml
+"""Emap2lig CLI and programmatic inference API."""
 
 import csv
 import shutil
+import sys
+import uuid
+from pathlib import Path
 
+import numpy as np
+import torch
+import yaml
+from hydra import compose, initialize_config_dir
+from hydra.utils import instantiate
+from lightning import Trainer, seed_everything
+from loguru import logger
+from rdkit import Chem
+from skimage import measure
+from torch.utils.data import DataLoader
+import typer
+
+import rdkit
 from huggingface_hub import hf_hub_download
 
+from emap2lig.data.ccd import CCDFetchError, get_ccd_mol, get_conformer_from_smiles
+from emap2lig.data.const import bond_type_ids, chirality_type_ids
+from emap2lig.data.dataset import LigandModelingDataset, collate_fn
 from emap2lig.data.io.map import parse_mrc, to_mrc
+from emap2lig.data.io.writer import LigandWriter
+from emap2lig.data.map import crop_mrcs, get_unified_mrc
 from emap2lig.data.types import (
-    MapObject,
+    Atom,
+    Bond,
     DensityObject,
     LigandObject,
     LigandRecord,
-    Atom,
-    Bond,
+    MapObject,
 )
-from emap2lig.data.map import get_unified_mrc, crop_mrcs
-from emap2lig.data.dataset import LigandModelingDataset, collate_fn
-from emap2lig.data.const import chirality_type_ids, bond_type_ids
-from emap2lig.data.io.writer import LigandWriter
-from emap2lig.data.ccd import get_conformer_from_smiles, get_ccd_dict
 
 # ---------------------------------------------------------------------------
 # Model weights directory & metadata
@@ -159,19 +163,23 @@ def ensure_weights() -> None:
             download_weights(filename=fn)
 
 
-def detect_ligand_objects(input_map, output_dir, cfg, emdb_id=None):
+def detect_ligand_objects(
+    input_map: Path | str,
+    output_dir: Path | str,
+    cfg: object,
+    emdb_id: str | None = None,
+) -> tuple[int, Path | None]:
     """Detect ligand objects in cryo-EM density maps using Emap2lig.
 
     Args:
-        input_map: Path to input cryo-EM map file
-        output_dir: Directory to save output files
-        cfg: Configuration object
-        emdb_id: EMDB ID for the map (optional)
+        input_map: Path to input cryo-EM map file.
+        output_dir: Directory to save output files.
+        cfg: Hydra configuration object.
+        emdb_id: EMDB ID for the map (optional).
 
     Returns:
-        tuple: (status_code, blobs_dir)
-            status_code: 0 for success, 1 for failure
-            blobs_dir: Directory containing detected blobs
+        Tuple of (status_code, blobs_dir).  *status_code* is 0 for
+        success, 1 for failure.  *blobs_dir* is ``None`` on failure.
     """
     try:
         # Create paths
@@ -400,7 +408,7 @@ def detect_ligand_objects(input_map, output_dir, cfg, emdb_id=None):
             logger.warning(
                 f"The detection contains {i} (more than 100) objects. To avoid wasting time, exiting..."
             )
-            exit()
+            sys.exit(1)
 
         # Check if any objects were detected
         if len(props) == 0:
@@ -409,46 +417,167 @@ def detect_ligand_objects(input_map, output_dir, cfg, emdb_id=None):
 
         return 0, blobs_dir
 
-    except Exception as e:
+    except (RuntimeError, ValueError, OSError) as e:
         logger.error(f"Error during ligand object detection: {e}")
         return 1, None
 
 
 def convert_atom_name(name: str) -> tuple[int, int, int, int]:
-    """Convert an atom name to a standard format.
+    """Convert an atom name to a 4-element integer code (PDB convention).
 
-    Parameters
-    ----------
-    name : str
-        The atom name.
+    Each character is mapped to ``ord(c) - 32``; shorter names are
+    zero-padded to length 4.
 
-    Returns
-    -------
-    tuple[int, int, int, int]
-        The converted atom name.
+    Args:
+        name: Atom name string (max 4 characters after stripping).
+
+    Returns:
+        4-tuple of integer character codes.
+
+    Raises:
+        ValueError: If the name exceeds 4 characters after stripping.
     """
     name = name.strip()
     name_code = [ord(c) - 32 for c in name]
+    if len(name_code) > 4:
+        raise ValueError(
+            f"Atom name {name!r} exceeds 4 characters (got {len(name_code)})"
+        )
     name_code = name_code + [0] * (4 - len(name_code))
-    assert len(name_code) <= 4, (
-        f"Atom name {name} is too long with length {len(name_code)}, must be 4 characters or less"
-    )
-    return tuple(name_code)  # type: ignore
+    return tuple(name_code)  # type: ignore[return-value]
 
 
-def process_branched_ligand(branched_config, ligand_name, ligands_dir, blobs=None):
-    """
-    Process a branched ligand configuration to create a LigandObject.
+def _extract_atom_features(
+    mol: Chem.Mol,
+    residue_id: int = 1,
+    auto_name: bool = False,
+) -> tuple[list[tuple], list[str]]:
+    """Extract atom features and names from an RDKit molecule.
 
     Args:
-        branched_config: Dictionary with residues and bonds information
-        ligand_name: Name for the ligand
-        ligands_dir: Directory to save the output
-        blobs: List of blob IDs associated with this ligand
-    """
-    # Load ligand CCD database from huggingface
-    ligand_ccd = get_ccd_dict()
+        mol: RDKit molecule (expected to have a conformer and atom
+            ``name`` properties when *auto_name* is False).
+        residue_id: Residue identifier stored in each atom record.
+        auto_name: When True, atoms without a ``name`` property are
+            assigned ``"<SYMBOL><INDEX>"`` (e.g. ``"C1"``).  When
+            False, the name defaults to an empty string.
 
+    Returns:
+        Tuple of (atom_tuples, atom_names) where each atom tuple
+        conforms to the :data:`Atom` structured-array dtype.
+    """
+    atom_tuples: list[tuple] = []
+    atom_names: list[str] = []
+
+    for atom_idx, atom in enumerate(mol.GetAtoms()):
+        if atom.HasProp("name"):
+            atom_name = atom.GetProp("name")
+        elif auto_name:
+            atom_name = f"{atom.GetSymbol()}{atom_idx + 1}"
+        else:
+            atom_name = ""
+
+        atom_names.append(atom_name)
+
+        name_code = convert_atom_name(atom_name)
+        atomic_num = atom.GetAtomicNum()
+        formal_charge = atom.GetFormalCharge()
+
+        chirality_type = atom.GetChiralTag().name
+        chirality_type_id = chirality_type_ids.get(chirality_type, 0)
+        chirality_one_hot = [False] * 7
+        chirality_one_hot[chirality_type_id] = True
+
+        in_ring = [
+            atom.IsInRingSize(3),
+            atom.IsInRingSize(4),
+            atom.IsInRingSize(5),
+            atom.IsInRingSize(6),
+        ]
+
+        try:
+            conformer = mol.GetConformer()
+            pos = conformer.GetAtomPosition(atom.GetIdx())
+            ref_pos = (pos.x, pos.y, pos.z)
+        except ValueError:
+            ref_pos = (0.0, 0.0, 0.0)
+
+        atom_tuples.append(
+            (
+                name_code,
+                atomic_num,
+                formal_charge,
+                (0.0, 0.0, 0.0),
+                ref_pos,
+                False,
+                tuple(chirality_one_hot),
+                tuple(in_ring),
+                residue_id,
+            )
+        )
+
+    return atom_tuples, atom_names
+
+
+def _extract_bond_features(
+    mol: Chem.Mol,
+    atom_offset: int = 0,
+) -> list[tuple]:
+    """Extract bond features from an RDKit molecule.
+
+    Args:
+        mol: RDKit molecule.
+        atom_offset: Offset added to atom indices (used when combining
+            residues from a branched ligand).
+
+    Returns:
+        List of bond tuples conforming to the :data:`Bond` dtype.
+    """
+    bond_tuples: list[tuple] = []
+
+    for bond in mol.GetBonds():
+        begin_idx = bond.GetBeginAtomIdx() + atom_offset
+        end_idx = bond.GetEndAtomIdx() + atom_offset
+
+        bond_type = bond.GetBondType().name
+        bond_type_id = bond_type_ids.get(bond_type, 0)
+        bond_type_one_hot = [False] * 5
+        if bond_type_id < 5:
+            bond_type_one_hot[bond_type_id] = True
+
+        in_ring = [
+            bond.IsInRingSize(3),
+            bond.IsInRingSize(4),
+            bond.IsInRingSize(5),
+            bond.IsInRingSize(6),
+        ]
+
+        bond_tuples.append(
+            (
+                begin_idx,
+                end_idx,
+                tuple(bond_type_one_hot),
+                tuple(in_ring),
+            )
+        )
+
+    return bond_tuples
+
+
+def process_branched_ligand(
+    branched_config: dict,
+    ligand_name: str,
+    ligands_dir: Path,
+    blobs: list[int] | None = None,
+) -> None:
+    """Process a branched ligand configuration to create a LigandObject.
+
+    Args:
+        branched_config: Dictionary with ``residues`` and ``bonds`` keys.
+        ligand_name: Name for the ligand (e.g. ``"LIG1"``).
+        ligands_dir: Directory to save the output NPZ.
+        blobs: List of blob IDs associated with this ligand.
+    """
     # Extract residue information
     residue_list = branched_config.get("residues", [])
     inter_bonds = branched_config.get("bonds", [])
@@ -456,7 +585,6 @@ def process_branched_ligand(branched_config, ligand_name, ligands_dir, blobs=Non
     # Parse residue names from the list (format: "1. NAG")
     residue_names = []
     for res_entry in residue_list:
-        # Extract 3-letter code after the number and dot
         parts = res_entry.strip().split(".")
         if len(parts) >= 2:
             res_name = parts[1].strip()
@@ -466,108 +594,29 @@ def process_branched_ligand(branched_config, ligand_name, ligands_dir, blobs=Non
         f"Processing branched ligand {ligand_name} with residues: {residue_names}"
     )
 
-    # Build combined molecule
-    all_atoms = []
-    all_bonds = []
-    atom_names = []
+    all_atoms: list[tuple] = []
+    all_bonds: list[tuple] = []
+    atom_names: list[str] = []
     atom_offset = 0
-    residue_atom_counts = []
+    residue_atom_counts: list[int] = []
 
-    # Process each residue
     for residue_idx, res_name in enumerate(residue_names, start=1):
-        if res_name not in ligand_ccd:
-            logger.warning(f"Residue {res_name} not found in CCD database")
+        try:
+            ref_mol = get_ccd_mol(res_name)
+        except CCDFetchError as exc:
+            logger.warning(f"Residue {res_name}: {exc}")
             continue
-
-        ref_mol = ligand_ccd[res_name]
         ref_mol = Chem.RemoveHs(ref_mol, sanitize=False)
 
-        # Process atoms for this residue
-        residue_atoms = []
-        for atom_idx, atom in enumerate(ref_mol.GetAtoms()):
-            # Get atom name
-            atom_name = (
-                atom.GetProp("name")
-                if atom.HasProp("name")
-                else f"{atom.GetSymbol()}{atom_idx + 1}"
-            )
-            atom_names.append(atom_name)
-
-            # Convert atom name to 4-char code
-            name_code = convert_atom_name(atom_name)
-
-            # Get atom features
-            atomic_num = atom.GetAtomicNum()
-            formal_charge = atom.GetFormalCharge()
-
-            # Get chirality
-            chirality_type = atom.GetChiralTag().name
-            chirality_type_id = chirality_type_ids.get(chirality_type, 0)
-            chirality_one_hot = [False] * 7
-            chirality_one_hot[chirality_type_id] = True
-
-            # Get ring info
-            in_ring = [
-                atom.IsInRingSize(3),
-                atom.IsInRingSize(4),
-                atom.IsInRingSize(5),
-                atom.IsInRingSize(6),
-            ]
-
-            # Get 3D coordinates (reference position)
-            try:
-                conformer = ref_mol.GetConformer()
-                pos = conformer.GetAtomPosition(atom.GetIdx())
-                ref_pos = (pos.x, pos.y, pos.z)
-            except:  # noqa: E722
-                ref_pos = (0.0, 0.0, 0.0)
-
-            # Create atom entry with residue_id
-            residue_atoms.append(
-                (
-                    name_code,
-                    atomic_num,
-                    formal_charge,
-                    (0.0, 0.0, 0.0),  # coords (will be filled during inference)
-                    ref_pos,
-                    False,  # is_present (will be determined during inference)
-                    tuple(chirality_one_hot),
-                    tuple(in_ring),
-                    residue_idx,  # residue_id for this residue
-                )
-            )
-
+        residue_atoms, residue_atom_names = _extract_atom_features(
+            ref_mol, residue_id=residue_idx, auto_name=True
+        )
         all_atoms.extend(residue_atoms)
+        atom_names.extend(residue_atom_names)
         residue_atom_counts.append(len(residue_atoms))
 
-        # Process intra-residue bonds
-        for bond in ref_mol.GetBonds():
-            begin_idx = bond.GetBeginAtomIdx() + atom_offset
-            end_idx = bond.GetEndAtomIdx() + atom_offset
-
-            # Get bond type
-            bond_type = bond.GetBondType().name
-            bond_type_id = bond_type_ids.get(bond_type, 0)
-            bond_type_one_hot = [False] * 5
-            if bond_type_id < 5:
-                bond_type_one_hot[bond_type_id] = True
-
-            # Get ring info
-            in_ring = [
-                bond.IsInRingSize(3),
-                bond.IsInRingSize(4),
-                bond.IsInRingSize(5),
-                bond.IsInRingSize(6),
-            ]
-
-            all_bonds.append(
-                (
-                    begin_idx,
-                    end_idx,
-                    tuple(bond_type_one_hot),
-                    tuple(in_ring),
-                )
-            )
+        residue_bonds = _extract_bond_features(ref_mol, atom_offset=atom_offset)
+        all_bonds.extend(residue_bonds)
 
         atom_offset += len(residue_atoms)
 
@@ -645,26 +694,17 @@ def process_branched_ligand(branched_config, ligand_name, ligands_dir, blobs=Non
     logger.info(f"Saved branched molecular object for {ligand_name} to {output_path}")
 
 
-def parse_ligand_list(ligand_list_path) -> list[LigandRecord]:
-    """
-    Parse ligand list that can contain both simple formats and YAML branched formats.
+def parse_ligand_list(ligand_list_path: Path | str) -> list[LigandRecord]:
+    """Parse a ligand list file into a list of LigandRecord objects.
 
-    Supports various formats:
-    - YAML file with a list of items
-    - YAML file with a single item
-    - Plain text file with a single ligand specification (CCD:... or SMILES:...)
-
-    Each item can be:
-    - A dictionary with BRANCHED key
-    - A dictionary with CCD key
-    - A dictionary with SMILES key
-    - A string starting with CCD: or SMILES:
+    Supports YAML (list or single-item), and plain text with
+    ``CCD:`` or ``SMILES:`` prefixes.
 
     Args:
-        ligand_list_path: Path to ligand list file
+        ligand_list_path: Path to the ligand list file.
 
     Returns:
-        List of LigandRecord objects
+        Parsed ligand records.  Empty list on unsupported format.
     """
     ligand_records: list[LigandRecord] = []
 
@@ -782,7 +822,6 @@ def parse_ligand_list(ligand_list_path) -> list[LigandRecord]:
         logger.info(
             f"YAML parsing failed, trying plain text format for {ligand_list_path}"
         )
-        pass
 
     # Handle plain text files with single ligand specification
     content_lines = [line.strip() for line in content.split("\n") if line.strip()]
@@ -828,21 +867,16 @@ def prepare_CCD_data(ligand_record: LigandRecord, ligands_dir: Path) -> str | No
     Returns:
         Ligand name if successful, None if failed
     """
-    # Load ligand CCD database from huggingface
-    ligand_ccd = get_ccd_dict()
-
     ligand_name = ligand_record.name
     logger.info(f"Processing CCD ligand {ligand_name}")
 
-    # Check if ligand exists in CCD database
-    if ligand_name not in ligand_ccd:
-        logger.warning(f"Ligand {ligand_name} not found in CCD database")
+    try:
+        ref_mol = get_ccd_mol(ligand_name)
+    except CCDFetchError as exc:
+        logger.warning(f"Ligand {ligand_name}: {exc}")
         return None
 
     try:
-        # Get reference molecule
-        ref_mol = ligand_ccd[ligand_name]
-
         # Generate SMILES
         smiles = Chem.MolToSmiles(ref_mol)
 
@@ -973,108 +1007,28 @@ def prepare_ligand_dataset(
     return 0, ligands_dir
 
 
-def process_molecule(ref_mol, ligand_name, smiles, ligands_dir, blobs=None):
-    """
-    Process a molecule to create a LigandObject and save it.
+def process_molecule(
+    ref_mol: Chem.Mol,
+    ligand_name: str,
+    smiles: str,
+    ligands_dir: Path,
+    blobs: list[int] | None = None,
+) -> None:
+    """Process a molecule to create a LigandObject and save it.
 
     Args:
-        ref_mol: RDKit molecule object
-        ligand_name: Name for the ligand
-        smiles: SMILES string for the ligand
-        ligands_dir: Directory to save the output
-        blobs: List of blob IDs associated with this ligand
+        ref_mol: RDKit molecule object.
+        ligand_name: Name for the ligand.
+        smiles: SMILES string for the ligand.
+        ligands_dir: Directory to save the output NPZ.
+        blobs: List of blob IDs associated with this ligand.
     """
-    # Get atom features
-    atom_names = []
+    atoms_list, atom_names = _extract_atom_features(ref_mol, residue_id=1)
+    bonds_list = _extract_bond_features(ref_mol)
 
-    # Create structured array for atoms
-    atoms_list = []
-
-    for atom in ref_mol.GetAtoms():
-        # Get atom name
-        atom_name = atom.GetProp("name") if atom.HasProp("name") else ""
-        atom_names.append(atom_name)
-
-        # Convert atom name to 4-char code
-        name_code = convert_atom_name(atom_name)
-
-        # Get atom features
-        atomic_num = atom.GetAtomicNum()
-        formal_charge = atom.GetFormalCharge()
-
-        # Get chirality
-        chirality_type = atom.GetChiralTag().name
-        chirality_type_id = chirality_type_ids.get(chirality_type, 0)
-        chirality_one_hot = [False] * 7
-        chirality_one_hot[chirality_type_id] = True
-
-        # Get ring info
-        in_ring = [
-            atom.IsInRingSize(3),
-            atom.IsInRingSize(4),
-            atom.IsInRingSize(5),
-            atom.IsInRingSize(6),
-        ]
-
-        # Get 3D coordinates (reference position)
-        try:
-            conformer = ref_mol.GetConformer()
-            pos = conformer.GetAtomPosition(atom.GetIdx())
-            ref_pos = (pos.x, pos.y, pos.z)
-        except:  # noqa: E722
-            ref_pos = (0.0, 0.0, 0.0)
-
-        # Create atom entry
-        atoms_list.append(
-            (
-                name_code,
-                atomic_num,
-                formal_charge,
-                (0.0, 0.0, 0.0),  # coords (will be filled during inference)
-                ref_pos,
-                False,  # is_present (will be determined during inference)
-                tuple(chirality_one_hot),
-                tuple(in_ring),
-                1,  # residue_id (default to 1 for single-residue ligands)
-            )
-        )
-
-    # Create structured array for atoms
     atoms = np.array(atoms_list, dtype=Atom)
-
-    # Create structured array for bonds
-    bonds_list = []
-
-    for bond in ref_mol.GetBonds():
-        # Get bond type
-        bond_type = bond.GetBondType().name
-        bond_type_id = bond_type_ids.get(bond_type, 0)
-        bond_type_one_hot = [False] * 5
-        if bond_type_id < 5:  # Ensure index is valid
-            bond_type_one_hot[bond_type_id] = True
-
-        # Get ring info
-        in_ring = [
-            bond.IsInRingSize(3),
-            bond.IsInRingSize(4),
-            bond.IsInRingSize(5),
-            bond.IsInRingSize(6),
-        ]
-
-        # Create bond entry
-        bonds_list.append(
-            (
-                bond.GetBeginAtomIdx(),
-                bond.GetEndAtomIdx(),
-                tuple(bond_type_one_hot),
-                tuple(in_ring),
-            )
-        )
-
-    # Create structured array for bonds
     bonds = np.array(bonds_list, dtype=Bond)
 
-    # Create RefMolecularObject
     ref_mol_object = LigandObject(
         smiles=smiles,
         atom_names=atom_names,
@@ -1092,7 +1046,7 @@ def process_molecule(ref_mol, ligand_name, smiles, ligands_dir, blobs=None):
     logger.info(f"Saved reference molecular object for {ligand_name} to {output_path}")
 
 
-def create_blob_csv_tables(outputs_dir: Path):
+def create_blob_csv_tables(outputs_dir: Path) -> None:
     """Sort per-blob CSV files by score and update the ``best/`` directory.
 
     The writer already appends rows to each blob's CSV during inference.
@@ -1101,7 +1055,7 @@ def create_blob_csv_tables(outputs_dir: Path):
     ``best/``.
 
     Args:
-        outputs_dir: Directory containing blob subdirectories with CSV / CIF files.
+        outputs_dir: Directory containing blob subdirectories with CSV/CIF files.
     """
     logger.info("Creating CSV tables for blob results")
 
@@ -1125,13 +1079,13 @@ def create_blob_csv_tables(outputs_dir: Path):
                 with open(csv_file) as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        name = row.get("conformer_name", "")
+                        name = row["conformer_name"]
                         try:
                             scores[name] = float(row["consistency_iou"])
                         except (KeyError, ValueError):
                             pass
-            except OSError:
-                pass
+            except OSError as e:
+                logger.warning(f"Failed to read CSV {csv_file}: {e}")
 
         # Safety net: include any CIF files that somehow lack a CSV entry
         for cif_file in blob_dir.glob("*.cif"):
@@ -1169,7 +1123,7 @@ def load_config(
     gpu: int = 0,
     detection_batch_size: int | None = None,
     contour_level: float | None = None,
-):
+) -> object:
     """Load Emap2lig configuration using Hydra.
 
     Args:
@@ -1246,10 +1200,8 @@ def run_structure_modeling(
     # directory so the dataset only sees the newly requested ligands.
     incremental_ligands_dir: Path | None = None
     if blob_ids is not None:
-        import uuid as _uuid
-
         incremental_ligands_dir = (
-            output_dir / "preprocess" / f"_ligands_{_uuid.uuid4().hex[:8]}"
+            output_dir / "preprocess" / f"_ligands_{uuid.uuid4().hex[:8]}"
         )
 
     _, ligands_object_dir = prepare_ligand_dataset(
