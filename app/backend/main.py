@@ -57,7 +57,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Emap2lig",
         description="Web GUI for cryo-EM ligand detection and structure modeling",
-        version="0.3.2",
+        version="0.3.3",
     )
 
     # CORS — allow the Vite dev server (port 5173) and any localhost

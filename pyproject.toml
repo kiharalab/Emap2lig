@@ -1,6 +1,6 @@
 [project]
 name = "emap2lig"
-version = "0.3.2"
+version = "0.3.3"
 description = "Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps."
 readme = "README.md"
 authors = [
@@ -56,3 +56,7 @@ dev = [
 web = [
     "fastapi[standard]>=0.128.6",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

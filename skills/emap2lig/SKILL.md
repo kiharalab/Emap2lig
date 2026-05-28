@@ -11,7 +11,7 @@ license: GPL-3.0
 metadata:
   author: Kihara Lab
   repository: https://github.com/kiharalab/Emap2lig
-  version: "0.3.2"
+  version: "0.3.3"
 compatibility: >
   Requires Python 3.12, uv, and a CUDA-capable GPU for local inference.
   Web GUI needs clone + uv sync --group web (pre-built dist/, no Node.js).

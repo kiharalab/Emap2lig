@@ -1,0 +1,117 @@
+data_A1CS4
+# 
+_chem_comp.id                                    A1CS4 
+_chem_comp.name                                  "(4-bromanyl-5-methyl-thiophen-2-yl)-oxidanyl-oxidanylidene-boron" 
+_chem_comp.type                                  non-polymer 
+_chem_comp.pdbx_type                             HETAIN 
+_chem_comp.formula                               "C5 H5 B Br O2 S" 
+_chem_comp.mon_nstd_parent_comp_id               ? 
+_chem_comp.pdbx_synonyms                         ? 
+_chem_comp.pdbx_formal_charge                    0 
+_chem_comp.pdbx_initial_date                     2025-09-10 
+_chem_comp.pdbx_modified_date                    2025-10-17 
+_chem_comp.pdbx_ambiguous_flag                   N 
+_chem_comp.pdbx_release_status                   REL 
+_chem_comp.pdbx_replaced_by                      ? 
+_chem_comp.pdbx_replaces                         ? 
+_chem_comp.formula_weight                        219.872 
+_chem_comp.one_letter_code                       ? 
+_chem_comp.three_letter_code                     A1CS4 
+_chem_comp.pdbx_model_coordinates_details        ? 
+_chem_comp.pdbx_model_coordinates_missing_flag   N 
+_chem_comp.pdbx_ideal_coordinates_details        Corina 
+_chem_comp.pdbx_ideal_coordinates_missing_flag   N 
+_chem_comp.pdbx_model_coordinates_db_code        7IBH 
+_chem_comp.pdbx_subcomponent_list                ? 
+_chem_comp.pdbx_processing_site                  RCSB 
+_chem_comp.pdbx_pcm                              ? 
+# 
+loop_
+_chem_comp_atom.comp_id 
+_chem_comp_atom.atom_id 
+_chem_comp_atom.alt_atom_id 
+_chem_comp_atom.type_symbol 
+_chem_comp_atom.charge 
+_chem_comp_atom.pdbx_align 
+_chem_comp_atom.pdbx_aromatic_flag 
+_chem_comp_atom.pdbx_leaving_atom_flag 
+_chem_comp_atom.pdbx_stereo_config 
+_chem_comp_atom.pdbx_n_terminal_atom_flag 
+_chem_comp_atom.pdbx_backbone_atom_flag 
+_chem_comp_atom.pdbx_c_terminal_atom_flag 
+_chem_comp_atom.model_Cartn_x 
+_chem_comp_atom.model_Cartn_y 
+_chem_comp_atom.model_Cartn_z 
+_chem_comp_atom.pdbx_model_Cartn_x_ideal 
+_chem_comp_atom.pdbx_model_Cartn_y_ideal 
+_chem_comp_atom.pdbx_model_Cartn_z_ideal 
+_chem_comp_atom.pdbx_component_atom_id 
+_chem_comp_atom.pdbx_component_comp_id 
+_chem_comp_atom.pdbx_ordinal 
+A1CS4 O01 O1  O  0 1 N N N N N N 19.595 -10.545 3.523 3.207  -2.024 -0.005 O01 A1CS4 1  
+A1CS4 B02 B1  B  0 1 N N N N N N 19.237 -11.750 4.024 3.083  -0.760 -0.003 B02 A1CS4 2  
+A1CS4 C03 C1  C  0 1 Y N N N N N 17.772 -12.053 4.349 1.653  -0.111 -0.003 C03 A1CS4 3  
+A1CS4 C04 C2  C  0 1 Y N N N N N 16.993 -12.882 3.538 0.471  -0.798 -0.001 C04 A1CS4 4  
+A1CS4 C05 C3  C  0 1 Y N N N N N 15.670 -13.007 4.054 -0.633 0.021  -0.001 C05 A1CS4 5  
+A1CS4 C06 C4  C  0 1 Y N N N N N 15.435 -12.312 5.210 -0.367 1.333  -0.003 C06 A1CS4 6  
+A1CS4 S07 S1  S  0 1 Y N N N N N 16.857 -11.505 5.639 1.316  1.614  0.002  S07 A1CS4 7  
+A1CS4 C08 C5  C  0 1 N N N N N N 14.141 -12.289 5.927 -1.414 2.417  -0.004 C08 A1CS4 8  
+A1CS4 BR9 BR1 BR 0 0 N N N N N N 14.460 -14.026 3.227 -2.399 -0.656 0.001  BR9 A1CS4 9  
+A1CS4 O10 O2  O  0 1 N N N N N N 20.322 -12.583 4.259 4.238  0.067  0.007  O10 A1CS4 10 
+A1CS4 H1  H1  H  0 1 N N N N N N 17.346 -13.365 2.639 0.410  -1.877 0.001  H1  A1CS4 11 
+A1CS4 H2  H2  H  0 1 N N N N N N 14.226 -11.649 6.818 -1.665 2.680  1.023  H2  A1CS4 12 
+A1CS4 H3  H3  H  0 1 N N N N N N 13.361 -11.890 5.262 -1.026 3.296  -0.520 H3  A1CS4 13 
+A1CS4 H4  H4  H  0 1 N N N N N N 13.874 -13.311 6.234 -2.307 2.059  -0.517 H4  A1CS4 14 
+A1CS4 H5  H5  H  0 1 N N N N N N 21.124 -12.135 4.017 5.096  -0.378 0.011  H5  A1CS4 15 
+# 
+loop_
+_chem_comp_bond.comp_id 
+_chem_comp_bond.atom_id_1 
+_chem_comp_bond.atom_id_2 
+_chem_comp_bond.value_order 
+_chem_comp_bond.pdbx_aromatic_flag 
+_chem_comp_bond.pdbx_stereo_config 
+_chem_comp_bond.pdbx_ordinal 
+A1CS4 BR9 C05 SING N N 1  
+A1CS4 O01 B02 DOUB N N 2  
+A1CS4 C04 C05 SING Y N 3  
+A1CS4 C04 C03 DOUB Y N 4  
+A1CS4 B02 O10 SING N N 5  
+A1CS4 B02 C03 SING N N 6  
+A1CS4 C05 C06 DOUB Y N 7  
+A1CS4 C03 S07 SING Y N 8  
+A1CS4 C06 S07 SING Y N 9  
+A1CS4 C06 C08 SING N N 10 
+A1CS4 C04 H1  SING N N 11 
+A1CS4 C08 H2  SING N N 12 
+A1CS4 C08 H3  SING N N 13 
+A1CS4 C08 H4  SING N N 14 
+A1CS4 O10 H5  SING N N 15 
+# 
+loop_
+_pdbx_chem_comp_descriptor.comp_id 
+_pdbx_chem_comp_descriptor.type 
+_pdbx_chem_comp_descriptor.program 
+_pdbx_chem_comp_descriptor.program_version 
+_pdbx_chem_comp_descriptor.descriptor 
+A1CS4 InChI            InChI                1.06    "InChI=1S/C5H5BBrO2S/c1-3-4(7)2-5(10-3)6(8)9/h2,8H,1H3" 
+A1CS4 InChIKey         InChI                1.06    LBOZEMFTUYESPV-UHFFFAOYSA-N                             
+A1CS4 SMILES_CANONICAL CACTVS               3.385   "Cc1sc(cc1Br)[B](O)=O"                                  
+A1CS4 SMILES           CACTVS               3.385   "Cc1sc(cc1Br)[B](O)=O"                                  
+A1CS4 SMILES_CANONICAL "OpenEye OEToolkits" 3.1.0.0 "B(=O)(c1cc(c(s1)C)Br)O"                                
+A1CS4 SMILES           "OpenEye OEToolkits" 3.1.0.0 "B(=O)(c1cc(c(s1)C)Br)O"                                
+# 
+_pdbx_chem_comp_identifier.comp_id           A1CS4 
+_pdbx_chem_comp_identifier.type              "SYSTEMATIC NAME" 
+_pdbx_chem_comp_identifier.program           "OpenEye OEToolkits" 
+_pdbx_chem_comp_identifier.program_version   3.1.0.0 
+_pdbx_chem_comp_identifier.identifier        "(4-bromanyl-5-methyl-thiophen-2-yl)-oxidanyl-oxidanylidene-boron" 
+# 
+loop_
+_pdbx_chem_comp_audit.comp_id 
+_pdbx_chem_comp_audit.action_type 
+_pdbx_chem_comp_audit.date 
+_pdbx_chem_comp_audit.processing_site 
+A1CS4 "Create component" 2025-09-10 RCSB 
+A1CS4 "Initial release"  2025-10-22 RCSB 
+# 
