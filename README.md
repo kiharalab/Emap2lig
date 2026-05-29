@@ -1,24 +1,14 @@
-<div align="center">
-  <table>
-    <tr>
-      <td align="right" valign="middle">
-        <img src="assets/emap2lig-logo-sm.png" alt="Emap2lig logo" width="96" />
-      </td>
-      <td align="left" valign="middle">
-        <h1>Emap2lig</h1>
-      </td>
-    </tr>
-  </table>
-
+<p align="center">
+  <img src="assets/emap2lig-logo-sm.png" alt="Emap2lig" width="180" />
+</p>
 
 [![Kihara Lab](https://img.shields.io/badge/Kihara%20Lab-Purdue%20University-B1810B)](https://kiharalab.org/)
 [![Emap2lig-Find](https://img.shields.io/badge/Emap2lig--Find-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Find)
 [![Emap2lig-Build](https://img.shields.io/badge/Emap2lig--Build-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Build)
 [![HuggingFace Model](https://img.shields.io/badge/Model%20Weights-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/KiharaLab/Emap2lig)
 <br/>
-[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/) [![CUDA](https://img.shields.io/badge/CUDA-12%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
-
-</div>
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/)
+[![CUDA](https://img.shields.io/badge/CUDA-12%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 
 Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps.
 
@@ -123,19 +113,13 @@ Then ask your agent: *"Run the Emap2lig pipeline on EMD-30556"*. Guide: [docs/ag
 
 ## License
 
-Emap2lig is covered by **two separate licenses**. Check both before using the
-software or running inference.
+- The **source code** in this repository is released under the [GNU General Public License v3.0](LICENSE).
+- The **trained model weights** are distributed under a separate license and are **free for academic and non-commercial research use only**.
 
-| Component | License | Link |
-|-----------|---------|------|
-| **Source code** (this repository) | GNU General Public License v3.0 (**GPL-3.0**) | [LICENSE](LICENSE) |
-| **Model weights** ([KiharaLab/Emap2lig](https://huggingface.co/KiharaLab/Emap2lig) on HuggingFace) | Academic and Non-Profit Research License Agreement | [LICENSE.md on HuggingFace](https://huggingface.co/KiharaLab/Emap2lig/blob/main/LICENSE.md) |
+Commercial use of the model weights is not permitted without permission.
+For commercial licensing inquiries, please contact the authors.
 
-> [!IMPORTANT]
-> **Model weights are not GPL-3.0.** Downloading or using the weights (inference,
-> fine-tuning, or redistribution) is governed by the
-> [HuggingFace license](https://huggingface.co/KiharaLab/Emap2lig/blob/main/LICENSE.md)
-> only. The GPL-3.0 applies to the source code in this repository.
+See [WEIGHT_LICENSE.md](WEIGHT_LICENSE.md) for full terms.
 
 Weights **download automatically** on first run; see [Model weights](docs/models.md).
 

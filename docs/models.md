@@ -10,19 +10,15 @@ Files **download automatically** on first run to `~/.emap2lig/models/` via `hugg
 | Fragment model | `emap2lig-frag.safetensors` | `FragmentRegSeg` |
 | Structure model | `emap2lig-build-v0.0.1.safetensors` | `Emap2lig` (diffusion modeling) |
 | CCD dictionary | `ccd/ccd_dict_250523.pkl` | Reference conformers |
-| License | `LICENSE.md` | Academic and Non-Profit Research License |
+| License | `LICENSE.md` | Academic and Non-Profit Research License (see [WEIGHT_LICENSE.md](../WEIGHT_LICENSE.md)) |
 
 ## License
 
-> [!IMPORTANT]
-> **Model weights** use a custom **Academic and Non-Profit Research License** —
-> separate from the code license.
->
-> - **Source code** (this repo): [GPL-3.0](../LICENSE)
-> - **Model weights** (HuggingFace): [Academic and Non-Profit Research License](https://huggingface.co/KiharaLab/Emap2lig/blob/main/LICENSE.md)
->
-> Weights are **not** GPL-3.0. Review both licenses before inference or
-> fine-tuning.
+- **Source code** (this repo): [GPL-3.0](../LICENSE)
+- **Model weights**: [WEIGHT_LICENSE.md](../WEIGHT_LICENSE.md) (canonical text on [Hugging Face](https://huggingface.co/KiharaLab/Emap2lig/blob/main/LICENSE.md))
+
+Commercial use of the model weights is not permitted without permission.
+For commercial licensing inquiries, please contact the authors.
 
 ## Syncing updates (maintainers)
 
