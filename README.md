@@ -164,5 +164,13 @@ the relevant dependencies above.
 If you use Emap2lig in your research, please cite the following:
 
 ```bibtex
-TBD
+@article{li2026direct,
+  title        = {Direct Detection and Atomic Modeling of Ligands in Cryo-EM Maps Using Deep Learning},
+  author       = {Li, Shu and Jain, Anika and Kagaya, Yuki and Park, Joon Hong and Kihara, Daisuke},
+  journal      = {bioRxiv},
+  year         = {2026},
+  doi          = {10.64898/2026.06.01.729423},
+  url          = {https://www.biorxiv.org/content/10.64898/2026.06.01.729423v1},
+  note         = {Preprint}
+}
 ```
