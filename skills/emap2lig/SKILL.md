@@ -323,11 +323,13 @@ Emap2lig builds upon several excellent open-source projects:
 ## Citation
 
 ```bibtex
-@article{emap2lig,
-  title        = {Emap2lig: Ligand Structure Modeling from Cryo-EM Density Maps},
-  author       = {Li, Shu and ... and Kihara, Daisuke},
+@article{li2026direct,
+  title        = {Direct Detection and Atomic Modeling of Ligands in Cryo-EM Maps Using Deep Learning},
+  author       = {Li, Shu and Jain, Anika and Kagaya, Yuki and Park, Joon Hong and Kihara, Daisuke},
   journal      = {bioRxiv},
-  year         = {2025},
-  note         = {In preparation}
+  year         = {2026},
+  doi          = {10.64898/2026.06.01.729423},
+  url          = {https://www.biorxiv.org/content/10.64898/2026.06.01.729423v1},
+  note         = {Preprint}
 }
 ```
