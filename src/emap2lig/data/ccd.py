@@ -182,10 +182,52 @@ def get_ccd_mol(code: str, date: str = _DEFAULT_CCD_DATE) -> Mol:
     return mol
 
 
+def _etkdg_embed(mol: Mol, version: str, *, use_random_coords: bool) -> int:
+    """Run ETKDG embedding followed by UFF relaxation.
+
+    Args:
+        mol: RDKit molecule to process (modified in place).
+        version: ETKDG version — ``"v3"`` or ``"v2"``.
+        use_random_coords: When ``True``, seed the embedder with random
+            coordinates.  This helps large or charged molecules that fail
+            distance-geometry initialization.
+
+    Returns:
+        Conformer id on success, or ``-1`` when embedding fails.
+    """
+    if version == "v3":
+        options = rdDistGeom.ETKDGv3()
+    elif version == "v2":
+        options = rdDistGeom.ETKDGv2()
+    else:
+        raise ValueError(f"Unsupported ETKDG version: {version}")
+
+    options.clearConfs = False
+    options.useRandomCoords = use_random_coords
+
+    try:
+        conf_id = rdDistGeom.EmbedMolecule(mol, options)
+        if conf_id == -1:
+            return -1
+        rdForceFieldHelpers.UFFOptimizeMolecule(mol, confId=conf_id, maxIters=1000)
+    except (RuntimeError, ValueError):
+        logger.debug(
+            "ETKDG embedding failed: version=%s random_coords=%s",
+            version,
+            use_random_coords,
+        )
+        return -1
+
+    return conf_id
+
+
 def compute_3d(mol: Mol, version: str = "v3") -> bool:
     """Generate 3D coordinates using the ETKDG method.
 
     Adapted from ``pdbeccdutils.core.component.Component``.
+
+    Tries the requested ETKDG version first, then retries with random
+    starting coordinates, and finally falls back to ETKDGv2.
 
     Args:
         mol: RDKit molecule to process (modified in place).
@@ -194,28 +236,24 @@ def compute_3d(mol: Mol, version: str = "v3") -> bool:
     Returns:
         ``True`` if a 3D conformer was successfully embedded.
     """
+    versions = [version]
     if version == "v3":
-        options = rdDistGeom.ETKDGv3()
-    else:
-        options = rdDistGeom.ETKDGv2()
+        versions.append("v2")
 
-    options.clearConfs = False
-    conf_id = -1
+    for etkdg_version in versions:
+        for use_random_coords in (False, True):
+            conf_id = _etkdg_embed(
+                mol,
+                etkdg_version,
+                use_random_coords=use_random_coords,
+            )
+            if conf_id == -1:
+                continue
 
-    try:
-        conf_id = rdDistGeom.EmbedMolecule(mol, options)
-        rdForceFieldHelpers.UFFOptimizeMolecule(mol, confId=conf_id, maxIters=1000)
-    except RuntimeError:
-        logger.debug("ETKDG embedding failed: force-field error")
-    except ValueError:
-        logger.debug("ETKDG embedding failed: sanitization error")
-
-    if conf_id != -1:
-        conformer = mol.GetConformer(conf_id)
-        conformer.SetProp("name", ConformerType.Computed.name)
-        conformer.SetProp("coord_generation", f"ETKDG{version}")
-
-        return True
+            conformer = mol.GetConformer(conf_id)
+            conformer.SetProp("name", ConformerType.Computed.name)
+            conformer.SetProp("coord_generation", f"ETKDG{etkdg_version}")
+            return True
 
     return False
 
@@ -321,12 +359,32 @@ def add_conformer(mol: Mol) -> tuple[str, Mol]:
     return result, mol
 
 
+def _assign_canonical_atom_names(mol: Mol, smiles: str) -> None:
+    """Assign canonical ``<SYMBOL><RANK>`` atom names to a heavy-atom molecule.
+
+    Args:
+        mol: Heavy-atom RDKit molecule (modified in place).
+        smiles: Source SMILES string, included in error messages.
+
+    Raises:
+        ValueError: If an atom name exceeds 4 characters.
+    """
+    canonical_order = Chem.CanonicalRankAtoms(mol)
+    for atom, can_idx in zip(mol.GetAtoms(), canonical_order):
+        atom_name = atom.GetSymbol().upper() + str(can_idx + 1)
+        if len(atom_name) > 4:
+            raise ValueError(
+                f"{smiles} has an atom with a name longer than 4 characters: {atom_name}"
+            )
+        atom.SetProp("name", atom_name)
+
+
 def get_conformer_from_smiles(smiles: str) -> tuple[str, Mol]:
     """Build a molecule from a SMILES string and generate a 3D conformer.
 
-    Hydrogens are added and canonical atom names are assigned before
-    conformer generation.  Atom names longer than 4 characters raise
-    ``ValueError``.
+    Hydrogens are added for ETKDG embedding, then removed before
+    canonical atom names are assigned on the heavy-atom molecule.
+    Atom names longer than 4 characters raise ``ValueError``.
 
     Args:
         smiles: SMILES string to parse.
@@ -339,16 +397,11 @@ def get_conformer_from_smiles(smiles: str) -> tuple[str, Mol]:
     """
     mol = Chem.MolFromSmiles(smiles)
     mol = Chem.AddHs(mol)
+    result, mol = add_conformer(mol)
 
-    # Set atom names
-    canonical_order = Chem.CanonicalRankAtoms(mol)
-    for atom, can_idx in zip(mol.GetAtoms(), canonical_order):
-        atom_name = atom.GetSymbol().upper() + str(can_idx + 1)
-        if len(atom_name) > 4:
-            raise ValueError(
-                f"{smiles} has an atom with a name longer than 4 characters: {atom_name}"
-            )
-        atom.SetProp("name", atom_name)
+    if result == "failed":
+        return result, mol
 
     mol = Chem.RemoveHs(mol)
-    return add_conformer(mol)
+    _assign_canonical_atom_names(mol, smiles)
+    return result, mol

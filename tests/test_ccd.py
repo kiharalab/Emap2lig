@@ -177,6 +177,27 @@ def test_smiles_conformer() -> None:
     assert len(atom_names) == mol.GetNumAtoms()
 
 
+def test_smiles_conformer_large_charged_molecule() -> None:
+    """Regression: a large multiply-charged molecule must embed via fallback.
+
+    Uses ATP (PDB CCD ``ATP``), a public reference ligand whose charged
+    triphosphate can fail plain ETKDGv3 distance-geometry init and must
+    succeed through the random-coords / v2 fallback ladder.
+    """
+    atp_smiles = (
+        "c1nc(c2c(n1)n(cn2)[C@H]3[C@@H]([C@@H]([C@H](O3)"
+        "COP(=O)([O-])OP(=O)([O-])OP(=O)([O-])[O-])O)O)N"
+    )
+    result, mol = get_conformer_from_smiles(atp_smiles)
+
+    assert result == "computed"
+    assert mol.GetNumConformers() >= 1
+    atom_names = [
+        atom.GetProp("name") for atom in mol.GetAtoms() if atom.HasProp("name")
+    ]
+    assert len(atom_names) == mol.GetNumAtoms()
+
+
 @pytest.mark.network
 def test_rcsb_live_a1cs4(monkeypatch: pytest.MonkeyPatch, tmp_ccd_dir: Path) -> None:
     monkeypatch.setattr(ccd_module, "_load_bulk_dict", lambda date="250523": {})
