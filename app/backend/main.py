@@ -53,11 +53,19 @@ def _spa_index_response(dist_root: Path) -> FileResponse:
     )
 
 
+def _package_version() -> str:
+    """Return the installed emap2lig package version."""
+    try:
+        return importlib.metadata.version("emap2lig")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Emap2lig",
         description="Web GUI for cryo-EM ligand detection and structure modeling",
-        version="0.3.3",
+        version=_package_version(),
     )
 
     # CORS — allow the Vite dev server (port 5173) and any localhost
@@ -86,11 +94,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/version")
     async def version():
-        try:
-            pkg_version = importlib.metadata.version("emap2lig")
-        except importlib.metadata.PackageNotFoundError:
-            pkg_version = "unknown"
-        return {"version": pkg_version}
+        return {"version": _package_version()}
 
     # ── Serve built frontend (SPA) ───────────────────────────────
     if _FRONTEND_DIST.is_dir():
