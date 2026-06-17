@@ -477,9 +477,7 @@ def list_gpus() -> dict:
                 "cuda_available": False,
                 "mps_available": supported,
                 "accelerator": "mps" if supported else None,
-                "gpus": [
-                    {"id": 0, "name": "Apple MPS", "memory_mb": 0}
-                ]
+                "gpus": [{"id": 0, "name": "Apple MPS", "memory_mb": 0}]
                 if supported
                 else [],
             }
@@ -509,9 +507,7 @@ def validate_gpu_selection(gpu_ids: list[int]) -> None:
         )
 
     if not gpu_ids:
-        raise ValueError(
-            "No accelerator selected. Please select a device in Setup."
-        )
+        raise ValueError("No accelerator selected. Please select a device in Setup.")
 
     available_ids = {gpu["id"] for gpu in gpu_info["gpus"]}
     invalid_ids = sorted({gpu_id for gpu_id in gpu_ids if gpu_id not in available_ids})

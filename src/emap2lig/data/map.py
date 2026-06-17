@@ -139,7 +139,9 @@ def resample_mrc(
                 original_data = original_data.to(device)
                 new_grid = new_grid.to(device)
             else:
-                logger.warning("No platform accelerator is available. Using CPU for resampling.")
+                logger.warning(
+                    "No platform accelerator is available. Using CPU for resampling."
+                )
 
         target_data = (
             torch.nn.functional.grid_sample(

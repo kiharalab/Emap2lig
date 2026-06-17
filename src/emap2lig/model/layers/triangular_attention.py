@@ -141,7 +141,11 @@ class TriangleAttention(nn.Module):
             else self.use_cuequiv
         )
 
-        if use_cuequiv_attention and CUEQUIVARIANCE_AVAILABLE and x.device.type == "cuda":
+        if (
+            use_cuequiv_attention
+            and CUEQUIVARIANCE_AVAILABLE
+            and x.device.type == "cuda"
+        ):
             return self._forward_cuequiv(x, mask)
         else:
             return self._forward_normal(x, mask)
