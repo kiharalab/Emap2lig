@@ -5,6 +5,8 @@ custom layer normalization, adaptive normalization, activation functions,
 and multi-layer perceptrons optimized for the emap2ligand architecture.
 """
 
+from collections.abc import Iterator
+from contextlib import nullcontext
 from functools import partial
 
 import torch
@@ -14,6 +16,15 @@ from torch import Tensor, nn
 # Convenient aliases for common layer types
 LinearNoBias = partial(nn.Linear, bias=False)  # Linear layer without bias
 Linear = nn.Linear  # Standard linear layer
+
+
+def disable_autocast_for(device: torch.device | str) -> Iterator[None]:
+    """Disable autocast for the active device when PyTorch supports it."""
+    device_type = torch.device(device).type
+    is_available = getattr(torch.amp, "is_autocast_available", None)
+    if is_available is not None and is_available(device_type):
+        return torch.autocast(device_type=device_type, enabled=False)
+    return nullcontext()
 
 
 class LayerNorm(nn.Module):
@@ -39,7 +50,6 @@ class LayerNorm(nn.Module):
         self.weight = nn.Parameter(torch.ones(c_in))
         self.bias = nn.Parameter(torch.zeros(c_in))
 
-    @torch.autocast("cuda", dtype=torch.float32)
     def forward(self, x: Tensor) -> Tensor:  # [*, C] -> [*, C]
         """Apply layer normalization.
 
@@ -53,13 +63,17 @@ class LayerNorm(nn.Module):
         Tensor
             Normalized tensor, same shape as input [*, C]
         """
-        out = nn.functional.layer_norm(
-            x,
-            self.c_in,
-            self.weight,
-            self.bias,
-            self.eps,
-        )
+        with disable_autocast_for(x.device):
+            dtype = x.dtype
+            out = nn.functional.layer_norm(
+                x.float() if x.is_floating_point() else x,
+                self.c_in,
+                self.weight.float() if self.weight.is_floating_point() else self.weight,
+                self.bias.float() if self.bias.is_floating_point() else self.bias,
+                self.eps,
+            )
+        if x.is_floating_point():
+            out = out.to(dtype)
         return out
 
 
@@ -70,7 +84,6 @@ class SwiGLU(nn.Module):
     Expects input to have even last dimension for splitting.
     """
 
-    @torch.autocast("cuda", dtype=torch.float32)
     def forward(
         self,
         x: Tensor,  # [*, 2*D]
@@ -87,8 +100,10 @@ class SwiGLU(nn.Module):
         Tensor
             Activated tensor, shape [*, D]
         """
-        x, gates = x.chunk(2, dim=-1)  # [*, D] each
-        return F.silu(gates) * x  # [*, D]
+        with disable_autocast_for(x.device):
+            dtype = x.dtype
+            x, gates = x.float().chunk(2, dim=-1)  # [*, D] each
+            return (F.silu(gates) * x).to(dtype)  # [*, D]
 
 
 class MLP(nn.Module):

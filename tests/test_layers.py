@@ -10,7 +10,9 @@ from emap2lig.model.layers.triangular_attention import (
 )
 
 
-def _reference_non_cueq_attention(layer, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+def _reference_non_cueq_attention(
+    layer, x: torch.Tensor, mask: torch.Tensor
+) -> torch.Tensor:
     if not layer.starting:
         x = rearrange(x, "... i j c -> ... j i c")
         mask = rearrange(mask, "... i j -> ... j i")

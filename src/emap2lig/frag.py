@@ -9,28 +9,10 @@ from hydra.utils import instantiate
 from emap2lig.data.io.map import parse_mrc, to_mrc
 from emap2lig.data.map import get_unified_mrc
 from emap2lig.data.types import MapObject
+from emap2lig.main import _require_accelerator, resolve_inference_device
 
 
 from loguru import logger
-
-
-def _require_cuda_gpu(gpu: int) -> None:
-    """Validate that a usable CUDA GPU device ID is provided."""
-    if gpu < 0:
-        raise ValueError(
-            "CPU inference is not supported. Please provide --gpu with a CUDA "
-            "device ID (0..N-1)."
-        )
-    if not torch.cuda.is_available():
-        raise RuntimeError(
-            "CUDA is not available in this environment. Emap2lig requires an "
-            "NVIDIA GPU (CUDA 12/13)."
-        )
-    device_count = torch.cuda.device_count()
-    if gpu >= device_count:
-        raise ValueError(
-            f"Invalid GPU device ID {gpu}. Available CUDA devices: 0..{device_count - 1}."
-        )
 
 
 def run_fragment_detection(input_map: str, output_dir: str, cfg, emdb_id: str | None):
@@ -40,8 +22,8 @@ def run_fragment_detection(input_map: str, output_dir: str, cfg, emdb_id: str | 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Enforce GPU-only inference.
-    _require_cuda_gpu(int(cfg.gpu))
+    # Enforce platform accelerator inference.
+    device = resolve_inference_device(int(cfg.gpu))
 
     map_stem = str(input_path.stem).split(".")[0]
     unified_map_path = output_dir / f"{map_stem}_unified.mrc"
@@ -68,8 +50,6 @@ def run_fragment_detection(input_map: str, output_dir: str, cfg, emdb_id: str | 
     logger.info("Initializing FragmentRegSeg model from configuration")
     model = instantiate(cfg.fragment_detection_model)
 
-    # Devices
-    device = torch.device(f"cuda:{cfg.gpu}")
     output_device = torch.device("cpu")
 
     # Inference
@@ -129,7 +109,7 @@ def main(
     output_dir: str = typer.Option(
         "./output", "--output-dir", help="Directory to save outputs"
     ),
-    gpu: int = typer.Option(0, "--gpu", help="CUDA GPU device ID"),
+    gpu: int = typer.Option(0, "--gpu", help="Accelerator device ID"),
     detection_batch_size: int | None = typer.Option(
         None,
         "--detection-batch-size",
@@ -142,7 +122,7 @@ def main(
 ):
     """Run fragment detection using FragmentRegSeg and save predictions."""
     try:
-        _require_cuda_gpu(gpu)
+        _require_accelerator(gpu)
     except (RuntimeError, ValueError) as exc:
         raise typer.BadParameter(str(exc), param_hint="--gpu") from exc
 

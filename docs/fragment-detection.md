@@ -16,10 +16,13 @@ From a clone: `uv run fragment-detect ...`
 | Option | Description |
 |--------|-------------|
 | `--output-dir` | Output directory (default: `./output`) |
-| `--gpu` | CUDA device ID (default: `0`) |
+| `--gpu` | Accelerator device ID (default: `0`). Linux uses CUDA; macOS uses MPS device `0`. |
 | `--detection-batch-size` | Sliding-window batch size |
 | `--emdb-id` | EMDB ID for contour level |
 | `--contour-level` | Manual contour level |
+
+Local fragment detection supports Linux/CUDA and macOS/MPS. CPU inference is not
+supported.
 
 Map inputs: [Input formats](input-format.md).
 

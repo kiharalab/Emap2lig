@@ -22,7 +22,7 @@ servers; upload inputs in the browser and download results when jobs finish.
 
 | | Web server | Local ([Usage](../README.md#usage)) |
 |---|------------|--------------------------------------|
-| GPU | Not required | NVIDIA CUDA required |
+| Accelerator | Not required | Linux/CUDA or macOS/MPS required |
 | Install | None | `uv` + Python 3.12 |
 | Stages | Separate Find and Build pages | Full pipeline via CLI, Web GUI, or API |
 
