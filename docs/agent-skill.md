@@ -19,8 +19,9 @@ After installation, prompt your agent, for example:
 > Run the Emap2lig pipeline on EMD-30556
 
 The skill documents CLI flags, input YAML, output layout, and Web GUI behavior.
-**Inference still runs on your machine** (or cluster) with a CUDA GPU — the skill
-does not replace local execution or the [KiharaLab web server](web-server.md).
+**Inference still runs on your machine** (or cluster) with a supported local
+accelerator — Linux/CUDA or macOS/MPS. The skill does not replace local
+execution or the [KiharaLab web server](web-server.md).
 
 ## Related docs
 
