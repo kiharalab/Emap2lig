@@ -8,7 +8,9 @@
 [![HuggingFace Model](https://img.shields.io/badge/Model%20Weights-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/KiharaLab/Emap2lig)
 <br/>
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/)
-[![CUDA](https://img.shields.io/badge/CUDA-12%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20macOS-555555?logo=apple&logoColor=white)](#hardware-requirements)
+[![CUDA](https://img.shields.io/badge/Linux-CUDA%2012%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
+[![MPS](https://img.shields.io/badge/macOS-MPS-000000?logo=apple&logoColor=white)](https://developer.apple.com/metal/pytorch/)
 
 Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps.
 
@@ -24,7 +26,8 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 </div>
 
 > [!IMPORTANT]
-> Local inference requires an NVIDIA CUDA GPU (CUDA 12/13). CPU inference is not supported.
+> Local inference requires a supported accelerator: **Linux + NVIDIA CUDA** or
+> **macOS + Apple MPS**. CPU inference is not supported.
 >
 > **No GPU?** Use the free [KiharaLab web server](https://em.kiharalab.org/algorithm/Emap2lig-Find) instead.
 
@@ -33,7 +36,7 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 | Path | GPU | Install |
 |------|-----|---------|
 | [KiharaLab Web Server](#kiharalab-web-server) | No | None |
-| [Local](#local) — CLI, Web GUI, or Agent Skill | Yes | See below |
+| [Local](#local) — CLI, Web GUI, or Agent Skill | Linux/CUDA or macOS/MPS | See below |
 
 ### KiharaLab Web Server
 
@@ -50,9 +53,12 @@ Details: [docs/web-server.md](docs/web-server.md)
 
 #### Hardware requirements
 
-- **GPU**: NVIDIA GPU with **8 GB+ VRAM**, Post-Ampere (RTX 30xx / 40xx / 50xx or newer)
-- **CUDA**: CUDA 12 / 13 compatible driver
+- **Linux**: NVIDIA GPU with **8 GB+ VRAM**, Post-Ampere (RTX 30xx / 40xx / 50xx or newer), CUDA 12 / 13 compatible driver
+- **macOS**: Apple Silicon or MPS-capable Mac with **macOS 13.2+** for local inference
 - **Python**: 3.12 ([uv](https://docs.astral.sh/uv/) recommended)
+
+Emap2lig selects the accelerator by platform: Linux uses CUDA, macOS uses MPS.
+Other platforms and CPU-only inference are not supported locally.
 
 Model weights **download automatically** from [HuggingFace](https://huggingface.co/KiharaLab/Emap2lig) on first run — no manual download step.
 
@@ -101,6 +107,7 @@ Then ask your agent: *"Run the Emap2lig pipeline on EMD-30556"*. Guide: [docs/ag
 | Topic | Guide |
 |-------|--------|
 | Installation | [docs/installation.md](docs/installation.md) |
+| Supported platforms | [docs/platforms.md](docs/platforms.md) |
 | CLI | [docs/cli.md](docs/cli.md) |
 | Web GUI | [docs/web-gui.md](docs/web-gui.md) |
 | KiharaLab web server | [docs/web-server.md](docs/web-server.md) |

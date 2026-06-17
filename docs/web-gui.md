@@ -6,7 +6,7 @@ separate tabs, matching the two-stage pipeline.
 ## Prerequisites
 
 - Python **3.12** and [uv](https://docs.astral.sh/uv/)
-- NVIDIA CUDA GPU (same as CLI)
+- Supported local inference accelerator (same as CLI): Linux/CUDA or macOS/MPS
 - Clone the repository — the GUI is **not** available via `uv tool install`
 
 ## Install and run
@@ -41,7 +41,7 @@ uv run --group web python app/start.py --no-browser
 
 ## Workflow
 
-- **Setup** — model cache path, download weights, GPU selection
+- **Setup** — model cache path, download weights, accelerator selection
 - **Find** — input map, detection options, inspect blobs in Mol*
 - **Build** — ligands (global or per-blob), run modeling, view conformers
 - **Visualization** — load an existing output directory

@@ -62,4 +62,12 @@ See [Model weights](models.md) for files, licensing, and maintainer update steps
 
 ## Hardware (local only)
 
-Local inference requires an NVIDIA GPU. See [README — Local usage](../README.md#local).
+Local inference requires one of the supported accelerator platforms:
+
+| Platform | Accelerator | Notes |
+|----------|-------------|-------|
+| Linux | NVIDIA CUDA GPU | CUDA 12/13 compatible driver; 8 GB+ VRAM recommended |
+| macOS | Apple MPS | macOS 13.2+ required for MPS Conv3d inference |
+
+CPU inference and other platforms are not supported locally. See
+[Supported platforms](platforms.md) and [README — Local usage](../README.md#local).

@@ -26,12 +26,15 @@ Install options: [Installation](installation.md).
 
 | Argument | Description |
 |----------|-------------|
-| `--gpu` | CUDA device ID (default: `0`) |
+| `--gpu` | Accelerator device ID (default: `0`). On Linux this is the CUDA device ID; on macOS MPS exposes a single device (`0`). |
 | `--detection-batch-size` | Sliding-window batch size for detection (default config: `16`) |
 | `--emdb-id` | EMDB ID for automatic contour level lookup |
 | `--contour-level` | Manual contour level (overrides EMDB lookup) |
 | `--multiplicity` | Conformers per ligand–blob pair (default: `1`) |
 | `--seed` | Random seed (default: `42`) |
+
+Local CLI inference supports Linux/CUDA and macOS/MPS. CPU inference is not
+supported.
 
 Use `--emdb-id` or `--contour-level` for map normalization — see
 [Map normalization](input-format.md#map-normalization).
