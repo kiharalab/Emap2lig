@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 from typing import Any
 
 from huggingface_hub import hf_hub_download
@@ -332,6 +333,10 @@ class Emap2lig(LightningModule):
         self.compile_model()
 
     def compile_model(self):
+        if sys.platform == "darwin":
+            logger.info("Disabling torch.compile on macOS/MPS inference")
+            return
+
         if self.is_conf_embedder_compiled:
             self.conf_embedder.compile()
         if self.is_pairformer_compiled:

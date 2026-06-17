@@ -111,4 +111,6 @@ class GpuInfo(BaseModel):
 
 class GpuListResponse(BaseModel):
     cuda_available: bool
+    mps_available: bool = False
+    accelerator: Literal["cuda", "mps"] | None = None
     gpus: list[GpuInfo]

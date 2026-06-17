@@ -262,8 +262,10 @@ class LigandWriter(BasePredictionWriter):
                             axis=1,
                         )
                         outside_frac = float(np.mean(outside)) if len(outside) else 0.0
-                        logger.info(
-                            "IoU debug for {outname}: grid zyx mins={mins} maxs={maxs} outside_frac={outside_frac} grid_shape={instance_mask.shape}",
+                        logger.debug(
+                            f"IoU debug for {outname}: grid zyx mins={mins} "
+                            f"maxs={maxs} outside_frac={outside_frac:.4f} "
+                            f"grid_shape={instance_mask.shape}",
                         )
 
                     # Calculate consistency_iou using the gaussian_blur_and_iou function

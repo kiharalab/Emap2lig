@@ -372,7 +372,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.3" },
     { name = "safetensors", specifier = ">=0.5.3" },
     { name = "scikit-image", specifier = ">=0.25.2" },
-    { name = "torch", specifier = ">=2.7.0" },
+    { name = "torch", specifier = ">=2.8.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.16.0" },
 ]

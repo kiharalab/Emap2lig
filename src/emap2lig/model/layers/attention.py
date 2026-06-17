@@ -3,7 +3,7 @@ import torch.nn.init as init
 from einops.layers.torch import Rearrange
 from torch import Tensor, nn
 
-from .primitives import LayerNorm
+from .primitives import LayerNorm, disable_autocast_for
 
 
 class AttentionPairBias(nn.Module):
@@ -147,8 +147,9 @@ class AttentionPairBias(nn.Module):
         # Gating values: [B, S, c_s] -> [B, S, c_s]
         g = self.proj_g(s).sigmoid()
 
-        with torch.autocast("cuda", enabled=False):
-            # Compute attention scores: [B, S, H, D] x [B, S, H, D] -> [B, H, S, S]
+        with disable_autocast_for(s.device):
+            # Compute attention scores in fp32 for numerical stability.
+            # [B, S, H, D] x [B, S, H, D] -> [B, H, S, S]
             attn = torch.einsum("bihd,bjhd->bhij", q.float(), k.float())
 
             # Scale and add pairwise bias: [B, H, S, S] + [B*m, H, S, S] -> [B, H, S, S]

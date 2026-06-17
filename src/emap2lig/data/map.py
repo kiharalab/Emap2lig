@@ -1,4 +1,5 @@
 from typing import Literal
+import sys
 
 import numpy as np
 import torch
@@ -88,7 +89,7 @@ def resample_mrc(
     logger.debug(f"voxel size: {original_voxel_size} -> {target_voxel_size}")
     logger.debug(f"grid size: {original_grid_size} -> {target_grid_size}")
 
-    with torch.autocast("cuda", enabled=use_gpu):
+    with torch.no_grad():
         z = (
             torch.arange(0, target_grid_size[0], dtype=torch.float32)
             / original_voxel_size[2]
@@ -123,13 +124,22 @@ def resample_mrc(
             torch.from_numpy(mrc_object.grid_data).unsqueeze(0).unsqueeze(0).float()
         )  # volumetric input
         if use_gpu:
-            # Check if GPU is available
-            if torch.cuda.is_available():
-                logger.debug("CUDA is available. Using GPU for resampling.")
+            if sys.platform.startswith("linux") and torch.cuda.is_available():
+                logger.debug("CUDA is available. Using CUDA for resampling.")
                 device = torch.device("cuda")
                 original_data = original_data.to(device)
+                new_grid = new_grid.to(device)
+            elif (
+                sys.platform == "darwin"
+                and hasattr(torch.backends, "mps")
+                and torch.backends.mps.is_available()
+            ):
+                logger.debug("MPS is available. Using MPS for resampling.")
+                device = torch.device("mps")
+                original_data = original_data.to(device)
+                new_grid = new_grid.to(device)
             else:
-                logger.warning("GPU is not available. Using CPU for resampling.")
+                logger.warning("No platform accelerator is available. Using CPU for resampling.")
 
         target_data = (
             torch.nn.functional.grid_sample(
