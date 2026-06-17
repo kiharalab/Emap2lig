@@ -52,8 +52,8 @@ Input formats match the CLI: [Input formats](input-format.md).
 
 Click **Tutorial** in the top-right corner of the header to start a guided
 walkthrough of the full Emap2lig workflow (Setup → Find → Build →
-Visualization). The tutorial loads pre-computed example results, so a GPU is
-not required to follow along.
+Visualization). The tutorial loads pre-computed example results, so an
+accelerator is not required to follow along.
 
 ![Tutorial button in the web GUI header](../assets/tutorial-button.png)
 
