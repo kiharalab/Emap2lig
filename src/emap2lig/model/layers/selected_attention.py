@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
 from .positional_encoding import PositionalEncoder
-from .primitives import LayerNorm, LinearNoBias
+from .primitives import LayerNorm, LinearNoBias, disable_autocast_for
 
 
 class SelectedCrossAttention(nn.Module):
@@ -107,7 +107,7 @@ class SelectedCrossAttention(nn.Module):
         # Normalize atom queries and build Q with positional encoding
         atom_feats_norm = self.atom_norm(atom_feats)  # [B, N_a, C_a]
         q = self.atom_q_proj(atom_feats_norm)  # [B, N_a, H*D]
-        with torch.autocast(device_type="cuda", enabled=False):
+        with disable_autocast_for(q.device):
             q = self.q_pos_enc(atom_coords, q)
 
         # Zero out Q for padded positions
@@ -122,7 +122,7 @@ class SelectedCrossAttention(nn.Module):
         kv = self.point_kv_proj(selected_feats_norm)
         k, v = kv.chunk(2, dim=-1)
 
-        with torch.autocast(device_type="cuda", enabled=False):
+        with disable_autocast_for(k.device):
             k = self.k_pos_enc(selected_point_coords, k)
             v = self.v_pos_enc(selected_point_coords, v)
 
@@ -130,10 +130,13 @@ class SelectedCrossAttention(nn.Module):
         k = rearrange(k, "b n (h d) -> b h n d", h=self.n_heads).contiguous()
         v = rearrange(v, "b n (h d) -> b h n d", h=self.n_heads).contiguous()
 
-        with (
-            sdpa_kernel(backends=[SDPBackend.FLASH_ATTENTION]),
-            torch.autocast(device_type="cuda", dtype=torch.bfloat16),
-        ):
+        if q.device.type == "cuda":
+            with (
+                sdpa_kernel(backends=[SDPBackend.FLASH_ATTENTION]),
+                torch.autocast(device_type="cuda", dtype=torch.bfloat16),
+            ):
+                o = F.scaled_dot_product_attention(q, k, v)
+        else:
             o = F.scaled_dot_product_attention(q, k, v)
 
         # Merge heads and project

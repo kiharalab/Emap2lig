@@ -7,6 +7,7 @@ so the FastAPI module loads instantly.
 from __future__ import annotations
 
 import asyncio
+import platform
 import sys
 from pathlib import Path
 
@@ -429,39 +430,87 @@ def set_cache_dir(new_dir: str) -> dict:
 
 
 def list_gpus() -> dict:
-    """Detect available CUDA GPUs."""
+    """Detect the platform-supported inference accelerator."""
     try:
         import torch
 
-        if not torch.cuda.is_available():
-            return {"cuda_available": False, "gpus": []}
-
-        gpus = []
-        for i in range(torch.cuda.device_count()):
-            props = torch.cuda.get_device_properties(i)
-            gpus.append(
-                {
-                    "id": i,
-                    "name": props.name,
-                    "memory_mb": props.total_memory // (1024 * 1024),
+        if sys.platform.startswith("linux"):
+            if not torch.cuda.is_available():
+                return {
+                    "cuda_available": False,
+                    "mps_available": False,
+                    "accelerator": None,
+                    "gpus": [],
                 }
+
+            gpus = []
+            for i in range(torch.cuda.device_count()):
+                props = torch.cuda.get_device_properties(i)
+                gpus.append(
+                    {
+                        "id": i,
+                        "name": props.name,
+                        "memory_mb": props.total_memory // (1024 * 1024),
+                    }
+                )
+            return {
+                "cuda_available": True,
+                "mps_available": False,
+                "accelerator": "cuda",
+                "gpus": gpus,
+            }
+
+        if sys.platform == "darwin":
+            mps_available = bool(
+                hasattr(torch.backends, "mps")
+                and torch.backends.mps.is_built()
+                and torch.backends.mps.is_available()
             )
-        return {"cuda_available": True, "gpus": gpus}
+            version = platform.mac_ver()[0]
+            parts = version.split(".") if version else []
+            try:
+                macos_supports_conv3d = (int(parts[0]), int(parts[1])) >= (13, 2)
+            except (IndexError, ValueError):
+                macos_supports_conv3d = False
+            supported = mps_available and macos_supports_conv3d
+            return {
+                "cuda_available": False,
+                "mps_available": supported,
+                "accelerator": "mps" if supported else None,
+                "gpus": [
+                    {"id": 0, "name": "Apple MPS", "memory_mb": 0}
+                ]
+                if supported
+                else [],
+            }
+
+        return {
+            "cuda_available": False,
+            "mps_available": False,
+            "accelerator": None,
+            "gpus": [],
+        }
     except Exception:
-        return {"cuda_available": False, "gpus": []}
+        return {
+            "cuda_available": False,
+            "mps_available": False,
+            "accelerator": None,
+            "gpus": [],
+        }
 
 
 def validate_gpu_selection(gpu_ids: list[int]) -> None:
-    """Validate that selected GPU IDs are usable CUDA devices."""
+    """Validate selected accelerator IDs for the current platform."""
     gpu_info = list_gpus()
-    if not gpu_info["cuda_available"] or not gpu_info["gpus"]:
+    if not gpu_info["gpus"]:
         raise ValueError(
-            "CUDA GPU is required for inference. CPU mode is not supported."
+            "No supported accelerator is available. Emap2lig inference supports "
+            "Linux/CUDA and macOS/MPS only."
         )
 
     if not gpu_ids:
         raise ValueError(
-            "No GPU selected. Please select at least one CUDA GPU in Setup."
+            "No accelerator selected. Please select a device in Setup."
         )
 
     available_ids = {gpu["id"] for gpu in gpu_info["gpus"]}
@@ -470,5 +519,8 @@ def validate_gpu_selection(gpu_ids: list[int]) -> None:
         available_str = ", ".join(str(i) for i in sorted(available_ids))
         invalid_str = ", ".join(str(i) for i in invalid_ids)
         raise ValueError(
-            f"Invalid GPU id(s): {invalid_str}. Available CUDA GPU id(s): {available_str}."
+            f"Invalid accelerator id(s): {invalid_str}. Available id(s): {available_str}."
         )
+
+    if gpu_info.get("accelerator") == "mps" and len(gpu_ids) > 1:
+        raise ValueError("MPS exposes a single device. Select only device 0.")

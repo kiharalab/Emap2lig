@@ -324,7 +324,7 @@ class MUNetRegSeg(nn.Module):
             batch_size=batch_size,
             shuffle=False,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=device.type == "cuda",
             collate_fn=custom_collate,
         )
 
@@ -519,7 +519,7 @@ class FragmentRegSeg(nn.Module):
             batch_size=batch_size,
             shuffle=False,
             num_workers=num_workers,
-            pin_memory=True,
+            pin_memory=device.type == "cuda",
             collate_fn=custom_collate,
         )
 

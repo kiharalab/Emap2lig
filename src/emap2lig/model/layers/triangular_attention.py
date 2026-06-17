@@ -36,7 +36,7 @@ except ImportError:
     CUEQUIVARIANCE_AVAILABLE = False
     kernel_triangular_attn = None  # type: ignore
 
-from .primitives import LayerNorm, LinearNoBias
+from .primitives import LayerNorm, LinearNoBias, disable_autocast_for
 
 
 class TriangleAttention(nn.Module):
@@ -141,7 +141,7 @@ class TriangleAttention(nn.Module):
             else self.use_cuequiv
         )
 
-        if use_cuequiv_attention and CUEQUIVARIANCE_AVAILABLE:
+        if use_cuequiv_attention and CUEQUIVARIANCE_AVAILABLE and x.device.type == "cuda":
             return self._forward_cuequiv(x, mask)
         else:
             return self._forward_normal(x, mask)
@@ -194,9 +194,9 @@ class TriangleAttention(nn.Module):
 
         # Boltz/cueq kernels mask attention keys, not Q/K/V projections.
 
-        with torch.autocast("cuda", enabled=False):
-            # Compute attention scores: [*, I, no_heads, J, J]
-            # Transpose last two dims of k for matrix multiplication
+        with disable_autocast_for(x.device):
+            # Compute attention scores in fp32 for numerical stability.
+            # [*, I, no_heads, J, J]
             k_transposed = rearrange(k, "... i h j d -> ... i h d j")
             attn_scores = torch.matmul(q.float(), k_transposed.float())
             attn_scores = attn_scores / (self.c_hidden**0.5)

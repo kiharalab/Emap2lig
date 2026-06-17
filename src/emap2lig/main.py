@@ -2,6 +2,7 @@
 """Emap2lig CLI and programmatic inference API."""
 
 import csv
+import platform
 import shutil
 import sys
 import uuid
@@ -60,23 +61,83 @@ if torch.cuda.is_available():
     torch.autograd.set_detect_anomaly(True)
 
 
-def _require_cuda_gpu(gpu: int) -> None:
-    """Validate that a usable CUDA GPU device ID is provided."""
-    if gpu < 0:
-        raise ValueError(
-            "CPU inference is not supported. Please provide --gpu with a CUDA "
-            "device ID (0..N-1)."
-        )
-    if not torch.cuda.is_available():
-        raise RuntimeError(
-            "CUDA is not available in this environment. Emap2lig requires an "
-            "NVIDIA GPU (CUDA 12/13)."
-        )
-    device_count = torch.cuda.device_count()
-    if gpu >= device_count:
-        raise ValueError(
-            f"Invalid GPU device ID {gpu}. Available CUDA devices: 0..{device_count - 1}."
-        )
+def _mps_available() -> bool:
+    return bool(
+        sys.platform == "darwin"
+        and hasattr(torch.backends, "mps")
+        and torch.backends.mps.is_built()
+        and torch.backends.mps.is_available()
+    )
+
+
+def _macos_version_at_least(major: int, minor: int) -> bool:
+    version = platform.mac_ver()[0]
+    if not version:
+        return False
+    parts = version.split(".")
+    try:
+        current = (int(parts[0]), int(parts[1]) if len(parts) > 1 else 0)
+    except ValueError:
+        return False
+    return current >= (major, minor)
+
+
+def resolve_inference_device(gpu: int = 0) -> torch.device:
+    """Resolve the supported accelerator by platform.
+
+    Linux uses CUDA. macOS uses MPS when available. Other platforms and CPU-only
+    environments are not supported for inference.
+    """
+    if sys.platform.startswith("linux"):
+        if gpu < 0:
+            raise ValueError(
+                "CPU inference is not supported. Please provide --gpu with a CUDA "
+                "device ID (0..N-1)."
+            )
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "CUDA is not available on this Linux environment. Emap2lig "
+                "requires an NVIDIA GPU (CUDA 12/13) on Linux."
+            )
+        device_count = torch.cuda.device_count()
+        if gpu >= device_count:
+            raise ValueError(
+                f"Invalid GPU device ID {gpu}. Available CUDA devices: 0..{device_count - 1}."
+            )
+        return torch.device(f"cuda:{gpu}")
+
+    if sys.platform == "darwin":
+        if gpu not in (0, -1):
+            raise ValueError("MPS exposes a single device. Use --gpu 0 for MPS.")
+        if not _mps_available():
+            raise RuntimeError(
+                "Apple MPS is not available on this macOS environment. Emap2lig "
+                "requires MPS on macOS."
+            )
+        if not _macos_version_at_least(13, 2):
+            raise RuntimeError(
+                "MPS Conv3d inference requires macOS 13.2 or newer. Please "
+                "upgrade macOS to run Emap2lig on MPS."
+            )
+        return torch.device("mps")
+
+    raise RuntimeError(
+        f"Unsupported platform {sys.platform!r}. Emap2lig inference supports "
+        "Linux/CUDA and macOS/MPS only."
+    )
+
+
+def _require_accelerator(gpu: int) -> None:
+    """Validate that a usable platform accelerator is available."""
+    resolve_inference_device(gpu)
+
+
+def _trainer_device_kwargs(device: torch.device) -> dict[str, object]:
+    if device.type == "cuda":
+        return {"accelerator": "gpu", "devices": [device.index or 0]}
+    if device.type == "mps":
+        return {"accelerator": "mps", "devices": 1}
+    raise RuntimeError(f"Unsupported inference device: {device}")
 
 
 # ---------------------------------------------------------------------------
@@ -190,8 +251,8 @@ def detect_ligand_objects(
         map_stem = str(input_path.stem).split(".")[0]
         logger.info(f"Map stem: {map_stem}")
 
-        # Enforce GPU-only inference for detection.
-        _require_cuda_gpu(int(cfg.gpu))
+        # Enforce platform accelerator inference for detection.
+        device = resolve_inference_device(int(cfg.gpu))
 
         detection_spatial_size = int(cfg.detection_model.spatial_size)
         structure_spatial_size = int(cfg.spatial_size)
@@ -249,12 +310,6 @@ def detect_ligand_objects(
             logger.info("Initializing Emap2lig model from configuration")
             detection_model = instantiate(cfg.detection_model)
 
-            # Set device
-            device = torch.device(
-                f"cuda:{cfg.gpu}"
-                if torch.cuda.is_available() and cfg.gpu >= 0
-                else "cpu"
-            )
             output_device = torch.device("cpu")
 
             # Run ligand detection
@@ -1127,7 +1182,7 @@ def load_config(
     """Load Emap2lig configuration using Hydra.
 
     Args:
-        gpu: CUDA GPU device ID.
+        gpu: CUDA GPU device ID on Linux; ignored except 0/-1 on macOS MPS.
         detection_batch_size: Override detection batch size from config.
         contour_level: Override contour level from config.
 
@@ -1166,7 +1221,7 @@ def run_structure_modeling(
         output_dir: Root output directory (will contain ``build_struct/`` subdirectory).
         ligand_records: List of :class:`LigandRecord` objects specifying ligands.
         cfg: Hydra configuration object (from :func:`load_config`).
-        gpu: CUDA GPU device ID.
+        gpu: CUDA GPU device ID on Linux; ignored except 0/-1 on macOS MPS.
         multiplicity: Number of conformers per blob per ligand.
         blob_ids: If provided, only process blobs with these IDs.
             When ``None`` (default), all blobs in *blobs_dir* are processed.
@@ -1179,8 +1234,8 @@ def run_structure_modeling(
     build_struct_dir = output_dir / "build_struct"
     build_struct_dir.mkdir(parents=True, exist_ok=True)
 
-    # Enforce GPU-only inference.
-    _require_cuda_gpu(gpu)
+    # Enforce platform accelerator inference.
+    device = resolve_inference_device(gpu)
 
     logger.info("Starting ligand dataset preparation.")
 
@@ -1257,8 +1312,7 @@ def run_structure_modeling(
 
     # Configure trainer
     trainer_kwargs = {
-        "accelerator": "gpu",
-        "devices": [gpu],
+        **_trainer_device_kwargs(device),
         "callbacks": [writer],
         "logger": False,  # Disable default logger
     }
@@ -1295,7 +1349,7 @@ def main(
     output_dir: str = typer.Option(
         "./output", "--output-dir", help="Directory to save output files"
     ),
-    gpu: int = typer.Option(0, "--gpu", help="CUDA GPU device ID"),
+    gpu: int = typer.Option(0, "--gpu", help="Accelerator device ID"),
     detection_batch_size: int | None = typer.Option(
         None,
         "--detection-batch-size",
@@ -1314,9 +1368,9 @@ def main(
     seed: int = typer.Option(42, "--seed", help="Random seed"),
 ):
     """Detect ligands in cryo-EM density maps using Emap2lig."""
-    # Enforce GPU-only inference before loading config.
+    # Enforce platform accelerator inference before loading config.
     try:
-        _require_cuda_gpu(gpu)
+        _require_accelerator(gpu)
     except (RuntimeError, ValueError) as exc:
         raise typer.BadParameter(str(exc), param_hint="--gpu") from exc
 

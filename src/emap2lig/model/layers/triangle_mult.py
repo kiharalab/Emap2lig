@@ -70,6 +70,7 @@ class TriangleMultiplicationOutgoing(nn.Module):
         """
         super().__init__()
         self.use_cuequiv = use_cuequiv
+        self._warned_cuequiv_unavailable = False
 
         self.norm_in = LayerNorm(dim, eps=1e-5)
         self.p_in = LinearNoBias(dim, 2 * dim)
@@ -115,27 +116,29 @@ class TriangleMultiplicationOutgoing(nn.Module):
             The output data of shape (B, N, N, D)
 
         """
-        # Use optimized cuequivariance kernel if available
-        if self.use_cuequiv:
-            if HAS_CUEQUIVARIANCE:
-                return kernel_triangular_mult(
-                    x,
-                    direction="outgoing",
-                    mask=mask,
-                    norm_in_weight=self.norm_in.weight,
-                    norm_in_bias=self.norm_in.bias,
-                    p_in_weight=self.p_in.weight,
-                    g_in_weight=self.g_in.weight,
-                    norm_out_weight=self.norm_out.weight,
-                    norm_out_bias=self.norm_out.bias,
-                    p_out_weight=self.p_out.weight,
-                    g_out_weight=self.g_out.weight,
-                    eps=1e-5,
-                )
-            else:
+        # Use optimized cuequivariance kernel only for CUDA tensors. MPS falls
+        # through silently to the normal PyTorch implementation.
+        if self.use_cuequiv and x.device.type == "cuda" and HAS_CUEQUIVARIANCE:
+            return kernel_triangular_mult(
+                x,
+                direction="outgoing",
+                mask=mask,
+                norm_in_weight=self.norm_in.weight,
+                norm_in_bias=self.norm_in.bias,
+                p_in_weight=self.p_in.weight,
+                g_in_weight=self.g_in.weight,
+                norm_out_weight=self.norm_out.weight,
+                norm_out_bias=self.norm_out.bias,
+                p_out_weight=self.p_out.weight,
+                g_out_weight=self.g_out.weight,
+                eps=1e-5,
+            )
+        if self.use_cuequiv and x.device.type == "cuda" and not HAS_CUEQUIVARIANCE:
+            if not self._warned_cuequiv_unavailable:
                 logger.warning(
                     "Cuequivariance not installed, using fallback implementation"
                 )
+                self._warned_cuequiv_unavailable = True
 
         # Fallback PyTorch implementation
         # Input gating and normalization
@@ -184,6 +187,7 @@ class TriangleMultiplicationIncoming(nn.Module):
         """
         super().__init__()
         self.use_cuequiv = use_cuequiv
+        self._warned_cuequiv_unavailable = False
 
         self.norm_in = LayerNorm(dim, eps=1e-5)
         self.p_in = LinearNoBias(dim, 2 * dim)
@@ -229,27 +233,29 @@ class TriangleMultiplicationIncoming(nn.Module):
             The output data of shape (B, N, N, D)
 
         """
-        # Use optimized cuequivariance kernel if available
-        if self.use_cuequiv:
-            if HAS_CUEQUIVARIANCE:
-                return kernel_triangular_mult(
-                    x,
-                    direction="incoming",
-                    mask=mask,
-                    norm_in_weight=self.norm_in.weight,
-                    norm_in_bias=self.norm_in.bias,
-                    p_in_weight=self.p_in.weight,
-                    g_in_weight=self.g_in.weight,
-                    norm_out_weight=self.norm_out.weight,
-                    norm_out_bias=self.norm_out.bias,
-                    p_out_weight=self.p_out.weight,
-                    g_out_weight=self.g_out.weight,
-                    eps=1e-5,
-                )
-            else:
+        # Use optimized cuequivariance kernel only for CUDA tensors. MPS falls
+        # through silently to the normal PyTorch implementation.
+        if self.use_cuequiv and x.device.type == "cuda" and HAS_CUEQUIVARIANCE:
+            return kernel_triangular_mult(
+                x,
+                direction="incoming",
+                mask=mask,
+                norm_in_weight=self.norm_in.weight,
+                norm_in_bias=self.norm_in.bias,
+                p_in_weight=self.p_in.weight,
+                g_in_weight=self.g_in.weight,
+                norm_out_weight=self.norm_out.weight,
+                norm_out_bias=self.norm_out.bias,
+                p_out_weight=self.p_out.weight,
+                g_out_weight=self.g_out.weight,
+                eps=1e-5,
+            )
+        if self.use_cuequiv and x.device.type == "cuda" and not HAS_CUEQUIVARIANCE:
+            if not self._warned_cuequiv_unavailable:
                 logger.warning(
                     "Cuequivariance not installed, using fallback implementation"
                 )
+                self._warned_cuequiv_unavailable = True
 
         # Fallback PyTorch implementation
         # Input gating and normalization
