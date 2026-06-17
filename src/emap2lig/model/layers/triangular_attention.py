@@ -175,10 +175,10 @@ class TriangleAttention(nn.Module):
         # [*, I, J, c_in] -> [*, I, J, c_in]
         x = self.layer_norm(x)
 
-        # Compute triangle bias from pair features
-        # [*, I, J, c_in] -> [*, I, J, no_heads] -> [*, no_heads, I, J]
+        # Compute triangle bias from pair features.
+        # Match Boltz/cueq layout: [*, 1, no_heads, I, J].
         tri_bias = self.linear_bias(x)
-        tri_bias = rearrange(tri_bias, "... i j h -> ... h i j")
+        tri_bias = rearrange(tri_bias, "... i j h -> ... 1 h i j")
 
         # Compute Q, K, V projections
         # [*, I, J, c_in] -> [*, I, J, no_heads * c_hidden]
@@ -192,12 +192,7 @@ class TriangleAttention(nn.Module):
         k = rearrange(k, "... i j (h d) -> ... i h j d", h=self.no_heads)
         v = rearrange(v, "... i j (h d) -> ... i h j d", h=self.no_heads)
 
-        # Zero out Q/K/V for padded positions to prevent information leakage
-        # mask shape: [*, I, J], expand to [*, I, 1, J, 1] for Q/K/V
-        qkv_mask = mask.unsqueeze(-2).unsqueeze(-1).float()  # [*, I, 1, J, 1]
-        q = q * qkv_mask
-        k = k * qkv_mask
-        v = v * qkv_mask
+        # Boltz/cueq kernels mask attention keys, not Q/K/V projections.
 
         with torch.autocast("cuda", enabled=False):
             # Compute attention scores: [*, I, no_heads, J, J]
@@ -206,15 +201,12 @@ class TriangleAttention(nn.Module):
             attn_scores = torch.matmul(q.float(), k_transposed.float())
             attn_scores = attn_scores / (self.c_hidden**0.5)
 
-            # Add triangle bias: [*, no_heads, I, J] -> [*, I, no_heads, J, J]
-            # Rearrange triangle bias and add singleton dimension for broadcasting
-            tri_bias = rearrange(tri_bias, "... h i j -> ... i h j")
-            tri_bias = tri_bias.unsqueeze(-1)  # [*, I, no_heads, J, 1]
+            # Add triangle bias and key mask.
+            # attn_scores: [*, I, no_heads, J, J]
+            # tri_bias:    [*, 1, no_heads, I, J]
             attn_scores = attn_scores + tri_bias.float()
-
-            # Apply mask: [*, I, J] -> [*, I, 1, 1, J]
-            mask_expanded = mask.unsqueeze(-2).unsqueeze(-2).float()
-            attn_scores = attn_scores + (1 - mask_expanded) * -self.inf
+            mask_bias = self.inf * (mask[..., :, None, None, :].float() - 1)
+            attn_scores = attn_scores + mask_bias.float()
 
             # Apply softmax
             attn_weights = torch.softmax(attn_scores, dim=-1)
@@ -233,8 +225,7 @@ class TriangleAttention(nn.Module):
         # Final projection
         o = self.linear_o(o)
 
-        # Zero out output for padded positions: [*, I, J] -> [*, I, J, 1]
-        o = o * mask.unsqueeze(-1).float()
+        # Keep Boltz semantics: masked pair outputs are not zeroed here.
 
         # For ending node, swap back to original orientation using einops
         if not self.starting:
@@ -276,8 +267,8 @@ class TriangleAttention(nn.Module):
         # Apply layer normalization
         x = self.layer_norm(x)
 
-        # Compute triangle bias from pair features
-        # [*, I, J, c_in] -> [*, I, J, no_heads] -> [*, no_heads, I, J]
+        # Compute triangle bias from pair features.
+        # Match cueq layout: [*, 1, no_heads, I, J].
         tri_bias = self.linear_bias(x)
         tri_bias = rearrange(tri_bias, "... i j h -> ... 1 h i j")
 
@@ -296,12 +287,7 @@ class TriangleAttention(nn.Module):
         k = rearrange(k, "... i j (h d) -> ... i h j d", h=self.no_heads)
         v = rearrange(v, "... i j (h d) -> ... i h j d", h=self.no_heads)
 
-        # Zero out Q/K/V for padded positions to prevent information leakage
-        # mask shape: [*, I, J], expand to [*, I, 1, J, 1] for Q/K/V
-        qkv_mask = mask.unsqueeze(-2).unsqueeze(-1).float()  # [*, I, 1, J, 1]
-        q = q * qkv_mask
-        k = k * qkv_mask
-        v = v * qkv_mask
+        # Boltz/cueq kernels mask attention keys, not Q/K/V projections.
 
         # Apply cuequivariance triangle attention using torch.compile-compatible wrapper
         # Use the disabled kernel wrapper to support torch.compile
@@ -315,20 +301,17 @@ class TriangleAttention(nn.Module):
             scale=scale,
         )
 
+        # cueq returns [*, I, no_heads, J, c_hidden] for this q/k/v layout.
+        o = rearrange(o, "... i h j d -> ... i j (h d)")
+
         # Apply gating
         g = self.sigmoid(self.linear_g(x))
-
-        # Reshape output to match gating dimensions using einops
-        if len(o.shape) == 5:  # [*, I, no_heads, J, c_hidden]
-            o = rearrange(o, "... i h j d -> ... i j (h d)")
-
         o = o * g
 
         # Final projection
         o = self.linear_o(o)
 
-        # Zero out output for padded positions: [*, I, J] -> [*, I, J, 1]
-        o = o * mask.unsqueeze(-1).float()
+        # Keep Boltz semantics: masked pair outputs are not zeroed here.
 
         # For ending node, swap back to original orientation using einops
         if not self.starting:
