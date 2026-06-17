@@ -8,7 +8,6 @@
 [![HuggingFace Model](https://img.shields.io/badge/Model%20Weights-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/KiharaLab/Emap2lig)
 <br/>
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/)
-[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20macOS-555555?logo=apple&logoColor=white)](#hardware-requirements)
 [![CUDA](https://img.shields.io/badge/Linux-CUDA%2012%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 [![MPS](https://img.shields.io/badge/macOS-MPS-000000?logo=apple&logoColor=white)](https://developer.apple.com/metal/pytorch/)
 
