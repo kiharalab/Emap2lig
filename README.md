@@ -30,6 +30,17 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 >
 > **No GPU?** Use the free [KiharaLab web server](https://em.kiharalab.org/algorithm/Emap2lig-Find) instead.
 
+## Latest Updates
+
+- **2026-06-17: macOS MPS Acceleration Support**
+  - Added local inference support for macOS with Apple MPS acceleration.
+
+- **2026-05-22: uv Tool Installation**
+  - Emap2lig can now be installed globally via `uv tool install` — no cloning
+    needed for CLI usage.
+  - Added [Agent Skill](skills/emap2lig/) following the agentskills.io
+    specification for AI-agent-guided usage.
+
 ## Usage
 
 | Path | GPU | Install |
@@ -128,23 +139,6 @@ For commercial licensing inquiries, please contact the authors.
 See [WEIGHT_LICENSE.md](WEIGHT_LICENSE.md) for full terms.
 
 Weights **download automatically** on first run; see [Model weights](docs/models.md).
-
-## Latest Updates
-
-- **2026-05-22: uv Tool Installation**
-  - Emap2lig can now be installed globally via `uv tool install` — no cloning
-    needed for CLI usage.
-  - Added [Agent Skill](skills/emap2lig/) following the agentskills.io
-    specification for AI-agent-guided usage.
-
-- **2026-01-12: v0.3.1 Release**
-  - Detection model update.
-  - Per-blob ligand assignment in Web GUI.
-  - Web GUI tutorial system.
-
-- **2025-11-05: v0.3.0 Release**
-  - Initial public release with CLI and Web GUI.
-  - Two-stage pipeline: MUNet segmentation + PairFormer/AtomDiffusion modeling.
 
 ## Acknowledgements
 
