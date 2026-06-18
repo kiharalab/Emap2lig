@@ -1,0 +1,262 @@
+{
+  "repo_notes": [
+    {
+      "content": ""
+    }
+  ],
+  "pages": [
+    {
+      "title": "Emap2lig Overview",
+      "purpose": "High-level introduction to Emap2lig: what it does, the two-stage pipeline (Find + Build), supported interfaces, and links to all major sections.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Getting Started & Installation",
+      "purpose": "Step-by-step installation instructions for CLI-only and full repository setups, hardware requirements, and first-run model weight download.",
+      "parent": "Emap2lig Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Supported Platforms & Hardware",
+      "purpose": "Details on Linux/CUDA and macOS/MPS accelerator support, version requirements, and fallback to the KiharaLab web server when no local GPU is available.",
+      "parent": "Emap2lig Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Pipeline Architecture",
+      "purpose": "Overview of the end-to-end two-stage inference pipeline: data flow from cryo-EM map input through Find (segmentation) and Build (diffusion modeling) to mmCIF output. Links to child pages for each stage.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Map Preprocessing & Normalization",
+      "purpose": "How raw cryo-EM maps are resampled to 1.0 Å/voxel, normalized using EMDB contour levels, cropped to content, and serialized as MapObject/DensityObject.",
+      "parent": "Pipeline Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Data Types & Serialization",
+      "purpose": "Core data structures used throughout the pipeline: MapObject, DensityObject, LigandObject, LigandRecord, Atom/Bond structured arrays, and NumpySerializable NPZ I/O.",
+      "parent": "Pipeline Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Chemical Component Dictionary (CCD)",
+      "purpose": "How ligand molecular templates are resolved: bulk HuggingFace dictionary, per-CCD pickle cache, RCSB CIF fallback, ETKDG 3D conformer generation, and the get_ccd_mol / get_conformer_from_smiles API.",
+      "parent": "Pipeline Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Stage 1 — Find: Ligand Blob Detection",
+      "purpose": "How the MUNetRegSeg model performs sliding-window segmentation of cryo-EM maps to produce per-class probability maps and isolated ligand density blobs (DensityObject NPZ files).",
+      "parent": "Pipeline Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "MUNet Segmentation Model",
+      "purpose": "Architecture of MUNetRegSeg and FragmentRegSeg: MUNetBackbone, SegHead, RegHead, sliding-window inference, and Li-threshold binarization.",
+      "parent": "Stage 1 — Find: Ligand Blob Detection",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Stage 2 — Build: Diffusion-Based Structure Modeling",
+      "purpose": "How the Emap2lig LightningModule combines ConformerEmbedder, PairFormer, InstanceSegModule, and AtomDiffusion to generate 3D atomic coordinates for each detected blob.",
+      "parent": "Pipeline Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "PairFormer & Attention Layers",
+      "purpose": "Detailed description of PairFormerBlock, TriangleAttention (starting/ending node), TriangleMultiplication, OuterProductMean, AttentionPairBias, and their cuequivariance-optimized kernel paths.",
+      "parent": "Stage 2 — Build: Diffusion-Based Structure Modeling",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "AtomDiffusion & Conditioning Modules",
+      "purpose": "EDM-style diffusion sampling: DiffusionModule, AtomConditioner, PointConditioner, AtomDecoder, noise schedule parameters, and the predict_step lifecycle.",
+      "parent": "Stage 2 — Build: Diffusion-Based Structure Modeling",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Interfaces & Usage",
+      "purpose": "Overview of all ways to run Emap2lig: CLI, Python API, Web GUI, Agent Skill, and KiharaLab web server. Links to child pages for each interface.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "CLI Reference",
+      "purpose": "Complete reference for the emap2lig and fragment-detect commands: required/optional arguments, map normalization flags, examples with EMD-30556 and EMD-7783, and output layout.",
+      "parent": "Interfaces & Usage",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Input & Output Formats",
+      "purpose": "Supported cryo-EM map formats (.mrc, .map.gz), ligand list YAML schema (CCD, SMILES, BRANCHED, blob_id), map normalization options, and the full output directory layout including blobs, find_maps, build_struct, and results CSV.",
+      "parent": "Interfaces & Usage",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Python Programmatic API",
+      "purpose": "How to call detect_ligand_objects, load_config, parse_ligand_list, and run_structure_modeling directly from Python code, with parameter descriptions and return values.",
+      "parent": "Interfaces & Usage",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Agent Skill",
+      "purpose": "Installing and using the agentskills.io emap2lig skill so AI coding agents (Cursor, Claude Code, etc.) can guide users through the pipeline.",
+      "parent": "Interfaces & Usage",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Web GUI",
+      "purpose": "Overview of the browser-based interface: architecture, startup, four workflow tabs (Setup, Find, Build, Visualization), and the interactive tutorial. Links to backend and frontend child pages.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Backend API (FastAPI)",
+      "purpose": "FastAPI application structure: routers (detect, model, jobs, files, download), Pydantic schemas, service layer (services.py), job state management, progress capture, and GPU detection endpoints.",
+      "parent": "Web GUI",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Frontend Components",
+      "purpose": "React/Vite SPA structure: root App component, Setup tab, FindTab (MUNet detection), BuildTab (diffusion modeling), VisualizationTab, DirPicker, ResultsTable, useJob/useBlobs hooks, and Mol* 3D viewer integration.",
+      "parent": "Web GUI",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Model Weights & Licensing",
+      "purpose": "HuggingFace Hub repository layout, automatic download mechanism, per-model file names and purposes, dual licensing (GPL-3.0 source / academic-only weights), and maintainer update steps.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Weight Management",
+      "purpose": "How weights are downloaded to ~/.emap2lig/models/ via huggingface_hub, check_weights / download_weights / ensure_weights helpers, cache directory configuration, and the Web GUI Setup tab download flow.",
+      "parent": "Model Weights & Licensing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Development & Testing",
+      "purpose": "Overview of the development environment, code quality tooling, and test suite. Links to child pages for pre-commit hooks and test infrastructure.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Code Quality & Pre-commit Hooks",
+      "purpose": "Pre-commit pipeline: ruff linting/formatting, pyupgrade, check-yaml/toml/jsonschema, uv-lock synchronization, and GitHub Actions lint workflow.",
+      "parent": "Development & Testing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Test Suite",
+      "purpose": "Test infrastructure: conftest.py fixtures (tmp_ccd_dir, --network flag), test isolation strategy for CCD caching, test_ccd.py and test_layers.py coverage, and the A1CS4.cif fixture.",
+      "parent": "Development & Testing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Glossary",
+      "purpose": "Definitions of all codebase-specific terms, abbreviations, and domain concepts an onboarding engineer needs to know, with code pointers to relevant files and classes.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    }
+  ]
+}
