@@ -2,10 +2,10 @@
 """One-command launcher for the Emap2lig web GUI.
 
 Usage (from the repo root):
-    uv run --group web python app/start.py [OPTIONS]
+    uv run --group web emap2lig-gui [OPTIONS]
 
-Or from the app/ directory:
-    uv run --group web python start.py [OPTIONS]
+Or:
+    uv run --group web python -m emap2lig.web.cli [OPTIONS]
 
 Options:
     --port INT       Port to serve on (default: 40427)
@@ -35,8 +35,8 @@ from typing import Annotated
 
 import typer
 
-APP_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = APP_DIR / "frontend"
+WEB_DIR = Path(__file__).resolve().parent
+FRONTEND_DIR = WEB_DIR / "frontend"
 DIST_DIR = FRONTEND_DIR / "dist"
 DEFAULT_PORT = 40427
 
@@ -75,8 +75,8 @@ def _npm_build(npm: str, *, rebuild: bool = False) -> None:
     if not package_json.is_file():
         print(
             "ERROR: frontend source (package.json) is not available.\n"
-            "  The public repo ships app/frontend/dist/ only.\n"
-            "  Remove --rebuild, or use a checkout that includes app/frontend/src/.",
+            "  PyPI installs ship emap2lig/web/frontend/dist/ only.\n"
+            "  Remove --rebuild, or use a checkout that includes frontend/src/.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -87,7 +87,7 @@ def _npm_build(npm: str, *, rebuild: bool = False) -> None:
 def _prepare_frontend(*, rebuild: bool) -> None:
     """Ensure frontend/dist exists, using npm only when necessary."""
     if DIST_DIR.is_dir() and not rebuild:
-        print("  Using pre-built frontend (app/frontend/dist/).")
+        print("  Using pre-built frontend (emap2lig/web/frontend/dist/).")
         return
 
     if not DIST_DIR.is_dir():
@@ -195,11 +195,10 @@ def main(
     import uvicorn
 
     uvicorn.run(
-        "backend.main:app",
+        "emap2lig.web.app:app",
         host=host,
         port=port,
         reload=False,
-        app_dir=str(APP_DIR),
     )
 
 

@@ -1,6 +1,6 @@
 [project]
 name = "emap2lig"
-version = "0.4.0"
+version = "0.4.1"
 description = "Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps."
 readme = "README.md"
 authors = [
@@ -38,9 +38,42 @@ Homepage = "https://github.com/kiharalab/Emap2lig"
 Repository = "https://github.com/kiharalab/Emap2lig"
 Issues = "https://github.com/kiharalab/Emap2lig/issues"
 
+[project.optional-dependencies]
+web = [
+    "fastapi[standard]>=0.128.6",
+]
+
 [project.scripts]
 emap2lig = "emap2lig.main:app"
 fragment-detect = "emap2lig.frag:app"
+emap2lig-gui = "emap2lig.web.cli:cli"
+
+[tool.uv.build-backend]
+# Ship only pre-built frontend/dist/ in distributions — not React source or tooling.
+source-exclude = [
+    "**/node_modules/**",
+    "**/frontend/src/**",
+    "**/frontend/vite/**",
+    "**/frontend/public/**",
+    "**/frontend/package.json",
+    "**/frontend/package-lock.json",
+    "**/frontend/vite.config.ts",
+    "**/frontend/tsconfig*.json",
+    "**/frontend/eslint.config.js",
+    "**/frontend/index.html",
+]
+wheel-exclude = [
+    "**/node_modules/**",
+    "**/frontend/src/**",
+    "**/frontend/vite/**",
+    "**/frontend/public/**",
+    "**/frontend/package.json",
+    "**/frontend/package-lock.json",
+    "**/frontend/vite.config.ts",
+    "**/frontend/tsconfig*.json",
+    "**/frontend/eslint.config.js",
+    "**/frontend/index.html",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.1,<0.12"]

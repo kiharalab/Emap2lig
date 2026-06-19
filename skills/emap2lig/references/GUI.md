@@ -10,20 +10,19 @@ and troubleshooting.
 ## Architecture
 
 ```
-app/
-├── start.py              # One-command launcher (npm build + uvicorn)
-├── backend/
-│   ├── main.py           # FastAPI app factory
-│   ├── routers/
-│   │   ├── detect.py     # POST /api/detect (Stage 1)
-│   │   ├── model.py      # POST /api/model, POST /api/model-blob (Stage 2)
-│   │   ├── jobs.py       # GET /api/jobs/..., job status polling
-│   │   ├── files.py      # GET /api/files/... (serve output files)
-│   │   └── download.py   # Model download + cache/gpu endpoints
-│   ├── schemas.py        # Pydantic request/response models
-│   ├── services.py       # Wrappers around emap2lig core functions
-│   ├── state.py          # In-memory job store
-│   └── results_scan.py   # On-disk output layout scanning
+src/emap2lig/web/
+├── cli.py                # Typer launcher (`emap2lig-gui`)
+├── app.py                # FastAPI app factory
+├── routers/
+│   ├── detect.py         # POST /api/detect (Stage 1)
+│   ├── model.py          # POST /api/model, POST /api/model-blob (Stage 2)
+│   ├── jobs.py           # GET /api/jobs/..., job status polling
+│   ├── files.py          # GET /api/files/... (serve output files)
+│   └── download.py       # Model download + cache/gpu endpoints
+├── schemas.py
+├── services.py
+├── state.py
+├── results_scan.py
 └── frontend/
     └── src/
         ├── App.tsx                  # Tab routing
@@ -80,10 +79,10 @@ active jobs but results on disk remain accessible via the Visualization tab.
 
 ```bash
 # Backend dev (hot reload)
-uv run --group web fastapi dev backend.main:app --app-dir app
+uv run --group web fastapi dev emap2lig.web.app:app
 
 # Frontend dev (Vite dev server)
-cd app/frontend
+cd src/emap2lig/web/frontend
 npm install
 npm run dev
 npm run build
@@ -93,7 +92,7 @@ npm run build
 
 | Issue | Solution |
 |-------|----------|
-| Port already in use | `start.py` auto-frees the port; or use `--port` |
+| Port already in use | `cli.py` auto-frees the port; or use `--port` |
 | Frontend not loading | Run `--rebuild` to force frontend rebuild |
 | Model download fails | Check internet; weights stored in `~/.emap2lig/models/` |
 | Job stuck at pending | Restart server; check GPU availability |

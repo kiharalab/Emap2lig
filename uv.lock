@@ -313,7 +313,7 @@ wheels = [
 
 [[package]]
 name = "emap2lig"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "." }
 dependencies = [
     { name = "cuequivariance-ops-torch-cu12", marker = "sys_platform == 'linux'" },
@@ -340,6 +340,11 @@ dependencies = [
     { name = "typer" },
 ]
 
+[package.optional-dependencies]
+web = [
+    { name = "fastapi", extra = ["standard"] },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "prek" },
@@ -357,6 +362,7 @@ requires-dist = [
     { name = "cuequivariance-torch", marker = "sys_platform == 'linux'", specifier = ">=0.5.2" },
     { name = "einops", specifier = ">=0.8.1" },
     { name = "fairscale", specifier = ">=0.4.13" },
+    { name = "fastapi", extras = ["standard"], marker = "extra == 'web'", specifier = ">=0.128.6" },
     { name = "gemmi", specifier = ">=0.7.1" },
     { name = "huggingface-hub", specifier = ">=0.31.1" },
     { name = "hydra-core", specifier = ">=1.3.2" },
@@ -376,6 +382,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.16.0" },
 ]
+provides-extras = ["web"]
 
 [package.metadata.requires-dev]
 dev = [

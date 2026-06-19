@@ -2,13 +2,21 @@
 
 Emap2lig targets **Python 3.12** and **uv** for dependency management.
 
-## Option A: CLI only (`uv tool install`)
+## Option A: CLI only (`uv tool install` or PyPI)
 
 Install `emap2lig` and `fragment-detect` on your PATH without cloning the
 repository:
 
 ```bash
 uv tool install --from git+https://github.com/kiharalab/Emap2lig emap2lig
+```
+
+Or from PyPI (when published):
+
+```bash
+pip install emap2lig
+# or
+uv tool install emap2lig
 ```
 
 Verify:
@@ -24,7 +32,7 @@ Update to the latest release:
 uv tool install --from git+https://github.com/kiharalab/Emap2lig emap2lig --reinstall
 ```
 
-This path does **not** include the Web GUI (see Option B).
+This path does **not** include the Web GUI (see Option B or C).
 
 ## Option B: Clone the repository
 
@@ -45,15 +53,22 @@ uv run fragment-detect --help
 
 ### Web GUI dependencies
 
-The GUI needs the `web` dependency group. The public repository ships a pre-built
-`app/frontend/dist/`; **Node.js is not required** to start the server.
+The GUI needs the `web` dependency group. The repository ships a pre-built
+`src/emap2lig/web/frontend/dist/`; **Node.js is not required** to start the server.
 
 ```bash
 uv sync --group web
-uv run --group web python app/start.py
+uv run --group web emap2lig-gui
 ```
 
 See [Web GUI](web-gui.md) for ports, headless mode, and frontend development.
+
+## Option C: PyPI with Web GUI
+
+```bash
+pip install "emap2lig[web]"
+emap2lig-gui
+```
 
 ## Model weights
 

@@ -39,16 +39,18 @@ cd "$(dirname "$0")/../../.."
 uv sync
 echo "✅ Installation complete"
 
-# Check Node.js for web GUI (optional)
+# Check Node.js for frontend rebuild (optional; pre-built dist/ needs no npm)
 if command -v node &>/dev/null; then
 	echo "✅ Node.js found: $(node --version)"
-	echo "   To install web GUI: uv sync --group web"
+	echo "   Web GUI: uv sync --group web && uv run emap2lig-gui"
+	echo "   Frontend rebuild (--rebuild): cd src/emap2lig/web/frontend && npm install && npm run build"
 else
-	echo "⚠️  Node.js not found — web GUI requires Node.js 18+"
+	echo "ℹ️  Node.js not found — OK for normal Web GUI use (pre-built dist/)."
+	echo "   Install Node.js 18+ only if you need --rebuild / frontend dev."
 fi
 
 echo ""
 echo "🚀 Ready! Try:"
 echo "   uv run emap2lig --help"
 echo "   uv run fragment-detect --help"
-echo "   uv run --group web python app/start.py  (web GUI)"
+echo "   uv run --group web emap2lig-gui  (web GUI)"

@@ -14,7 +14,8 @@ metadata:
   version: "0.3.4"
 compatibility: >
   Requires Python 3.12, uv, and a CUDA-capable GPU for local inference.
-  Web GUI needs clone + uv sync --group web (pre-built dist/, no Node.js).
+  Web GUI: pip install "emap2lig[web]" or clone + uv sync --group web
+  (pre-built dist/, no Node.js for normal use).
   Model weights download automatically from HuggingFace Hub on first run (network required).
 ---
 
@@ -43,11 +44,15 @@ emap2lig \
 
 # --- or ---
 
-# Option B: Clone the repo (needed for Web GUI)
+# Option B: Clone the repo (development or local workflows)
 git clone https://github.com/kiharalab/Emap2lig.git
 cd Emap2lig
 uv sync
 uv run emap2lig --input-map examples/emd_30556.map.gz ...
+
+# Option C: PyPI with Web GUI
+pip install "emap2lig[web]"
+emap2lig-gui
 ```
 
 Output goes to `outputs_30556/` — see [Output Structure](#output-structure) below.
@@ -122,15 +127,17 @@ This runs the lightweight FragmentRegSeg model and saves probability maps.
 
 ### Starting the GUI
 
-The Web GUI is only available when you clone the repository — `uv tool install`
-does **not** support the web GUI because it requires npm for the frontend build.
+The Web GUI ships with pre-built `frontend/dist/`. Install the `web` extra from
+PyPI or clone the repository for development.
 
 ```bash
-# Install web dependencies (one time)
-uv sync --group web
+# PyPI
+pip install "emap2lig[web]"
+emap2lig-gui
 
-# Launch
-uv run --group web python app/start.py
+# Clone
+uv sync --group web
+uv run --group web emap2lig-gui
 ```
 
 This starts the server at **http://localhost:40427** (configurable with `--port`).
@@ -176,7 +183,7 @@ The GUI has four tabs:
 ### Running Headless
 
 ```bash
-uv run --group web python app/start.py --no-browser --port 8080
+uv run --group web emap2lig-gui --no-browser --port 8080
 ```
 
 The server is accessible at `http://localhost:8080` for remote access.

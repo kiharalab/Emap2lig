@@ -1,0 +1,35 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Verify tag matches pyproject.toml version
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          expected="${tag#v}"
+          actual="$(grep -E '^version = ' pyproject.toml | sed -E 's/^version = "(.*)"/\1/')"
+          if [ "$expected" != "$actual" ]; then
+            echo "Tag $tag implies version $expected, but pyproject.toml has $actual"
+            exit 1
+          fi
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.UV_PUBLISH_TOKEN }}
+        run: uv publish

@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from .routers import detect, download, files, jobs, model
 
 # Resolved once at import time so it works regardless of cwd.
-_FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+_FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
 
 # Browsers must revalidate index.html after frontend dist rebuilds so script
 # tags point at the current hashed bundles under /assets/.

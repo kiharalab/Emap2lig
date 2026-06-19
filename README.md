@@ -89,12 +89,18 @@ Full flags and examples: [docs/cli.md](docs/cli.md) · Install options: [docs/in
 
 #### Web GUI
 
-Requires cloning the repo (includes pre-built frontend; no Node.js needed for normal use):
+Install with the `web` extra (PyPI) or clone the repo. Pre-built frontend is
+included; Node.js is not required for normal use.
 
 ```bash
+# PyPI
+pip install "emap2lig[web]"
+emap2lig-gui
+
+# Clone + uv
 git clone https://github.com/kiharalab/Emap2lig.git
 cd Emap2lig && uv sync --group web
-uv run --group web python app/start.py
+uv run --group web emap2lig-gui
 ```
 
 Open `http://localhost:40427`. Guide: [docs/web-gui.md](docs/web-gui.md)

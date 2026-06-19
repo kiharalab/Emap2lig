@@ -1,36 +1,44 @@
 # Web GUI
 
-Browser-based interface in `app/` with Mol* visualization. Find and Build are
-separate tabs, matching the two-stage pipeline.
+Browser-based interface in `src/emap2lig/web/` with Mol* visualization. Find and
+Build are separate tabs, matching the two-stage pipeline.
 
 ## Prerequisites
 
 - Python **3.12** and [uv](https://docs.astral.sh/uv/)
 - Supported local inference accelerator (same as CLI): Linux/CUDA or macOS/MPS
-- Clone the repository — the GUI is **not** available via `uv tool install`
 
 ## Install and run
+
+### From a clone
 
 ```bash
 git clone https://github.com/kiharalab/Emap2lig.git
 cd Emap2lig
 uv sync --group web
-uv run --group web python app/start.py
+uv run --group web emap2lig-gui
+```
+
+### From PyPI
+
+```bash
+pip install "emap2lig[web]"
+emap2lig-gui
 ```
 
 Open `http://localhost:40427` (default).
 
-The repository includes a pre-built `app/frontend/dist/`. **Node.js and npm are
-not required** for normal use.
+The package includes a pre-built `frontend/dist/`. **Node.js and npm are not
+required** for normal use.
 
 ### Options
 
 ```bash
 # Custom port
-uv run --group web python app/start.py --port 8080
+uv run --group web emap2lig-gui --port 8080
 
 # Headless (no browser auto-open)
-uv run --group web python app/start.py --no-browser
+uv run --group web emap2lig-gui --no-browser
 ```
 
 | Option | Description |
