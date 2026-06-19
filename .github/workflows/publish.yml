@@ -56,4 +56,16 @@ jobs:
       - name: Publish to PyPI
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.UV_PUBLISH_TOKEN }}
-        run: uv publish
+        run: |
+          set +e
+          output="$(uv publish 2>&1)"
+          status=$?
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          if echo "$output" | grep -qiE 'already exists|file already exists'; then
+            echo "Version already on PyPI; skipping upload."
+            exit 0
+          fi
+          exit "$status"
