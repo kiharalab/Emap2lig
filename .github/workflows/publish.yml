@@ -37,7 +37,14 @@ jobs:
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           version="${tag#v}"
-          notes_append="$(
+          notes_file="$(mktemp)"
+          {
+            gh api \
+              --method POST \
+              "/repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              -f tag_name="$tag" \
+              -f target_commitish="$GITHUB_SHA" \
+              --jq .body
             echo ""
             echo "## Install"
             echo ""
@@ -47,11 +54,10 @@ jobs:
             echo '```'
             echo ""
             echo "PyPI: https://pypi.org/project/emap2lig/${version}/"
-          )"
+          } > "$notes_file"
           gh release create "$tag" dist/* \
             --title "$tag" \
-            --generate-notes \
-            --notes-append "$notes_append"
+            --notes-file "$notes_file"
 
       - name: Publish to PyPI
         env:
