@@ -37,18 +37,17 @@ jobs:
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           version="${tag#v}"
-          notes_append="$(cat <<EOF
-
-## Install
-
-\`\`\`bash
-pip install emap2lig==${version}
-pip install 'emap2lig[web]==${version}'  # Web GUI (emap2lig-gui)
-\`\`\`
-
-PyPI: https://pypi.org/project/emap2lig/${version}/
-EOF
-)"
+          notes_append="$(
+            echo ""
+            echo "## Install"
+            echo ""
+            echo '```bash'
+            echo "pip install emap2lig==${version}"
+            echo "pip install 'emap2lig[web]==${version}'  # Web GUI (emap2lig-gui)"
+            echo '```'
+            echo ""
+            echo "PyPI: https://pypi.org/project/emap2lig/${version}/"
+          )"
           gh release create "$tag" dist/* \
             --title "$tag" \
             --generate-notes \
