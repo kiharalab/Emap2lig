@@ -6,13 +6,15 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: astral-sh/setup-uv@v5
 
@@ -28,6 +30,29 @@ jobs:
 
       - name: Build distributions
         run: uv build
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          version="${tag#v}"
+          notes_append="$(cat <<EOF
+
+## Install
+
+\`\`\`bash
+pip install emap2lig==${version}
+pip install 'emap2lig[web]==${version}'  # Web GUI (emap2lig-gui)
+\`\`\`
+
+PyPI: https://pypi.org/project/emap2lig/${version}/
+EOF
+)"
+          gh release create "$tag" dist/* \
+            --title "$tag" \
+            --generate-notes \
+            --notes-append "$notes_append"
 
       - name: Publish to PyPI
         env:
