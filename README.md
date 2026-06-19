@@ -1,7 +1,8 @@
 <p align="center">
-  <img src="assets/emap2lig-logo-sm.png" alt="Emap2lig" width="180" />
+  <img src="https://github.com/kiharalab/Emap2lig/raw/main/assets/emap2lig-logo-sm.png" alt="Emap2lig" width="180" />
 </p>
 
+[![PyPI](https://img.shields.io/pypi/v/emap2lig)](https://pypi.org/project/emap2lig/)
 [![Kihara Lab](https://img.shields.io/badge/Kihara%20Lab-Purdue%20University-B1810B)](https://kiharalab.org/)
 [![Emap2lig-Find](https://img.shields.io/badge/Emap2lig--Find-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Find)
 [![Emap2lig-Build](https://img.shields.io/badge/Emap2lig--Build-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Build)
@@ -19,7 +20,7 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 
 <div align="center">
   <img
-    src="assets/emap2lig-workflow-sm.png"
+    src="https://github.com/kiharalab/Emap2lig/raw/main/assets/emap2lig-workflow-sm.png"
     alt="Emap2lig workflow: cryo-EM map to Find (ligand blobs) to Build (atomic structures)"
     width="800"
   />
@@ -33,12 +34,17 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 
 ## Latest Updates
 
+- **2026-06-19: PyPI Release (v0.4.1)**
+  - Published on [PyPI](https://pypi.org/project/emap2lig/): `pip install emap2lig` or
+    `pip install "emap2lig[web]"` for the Web GUI (`emap2lig-gui`).
+  - Web GUI moved into the package at `src/emap2lig/web/`; pre-built frontend ships
+    in the wheel.
+
 - **2026-06-17: macOS MPS Acceleration Support**
   - Added local inference support for macOS with Apple MPS acceleration.
 
 - **2026-05-22: uv Tool Installation**
-  - Emap2lig can now be installed globally via `uv tool install` — no cloning
-    needed for CLI usage.
+  - Emap2lig can also be installed globally via `uv tool install emap2lig` or from GitHub.
   - Added [Agent Skill](skills/emap2lig/) following the agentskills.io
     specification for AI-agent-guided usage.
 
@@ -76,13 +82,23 @@ Model weights **download automatically** from [HuggingFace](https://huggingface.
 #### CLI
 
 ```bash
-uv tool install --from git+https://github.com/kiharalab/Emap2lig emap2lig
+# PyPI (recommended)
+pip install emap2lig
+
+# Or with uv
+uv tool install emap2lig
 
 emap2lig \
   --input-map examples/emd_30556.map.gz \
   --output-dir outputs_30556 \
   --ligand-list examples/emd_30556.yaml \
   --emdb-id 30556
+```
+
+Install from GitHub instead:
+
+```bash
+uv tool install --from git+https://github.com/kiharalab/Emap2lig emap2lig
 ```
 
 Full flags and examples: [docs/cli.md](docs/cli.md) · Install options: [docs/installation.md](docs/installation.md)
@@ -106,7 +122,7 @@ uv run --group web emap2lig-gui
 Open `http://localhost:40427`. Guide: [docs/web-gui.md](docs/web-gui.md)
 
 <img
-  src="assets/emap2lig-build.png"
+  src="https://github.com/kiharalab/Emap2lig/raw/main/assets/emap2lig-build.png"
   alt="Emap2lig Web GUI: Emap2lig-Build tab with ligand assignment, results table, and Mol* viewer"
   width="800"
 />
