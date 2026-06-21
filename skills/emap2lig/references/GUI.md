@@ -24,25 +24,11 @@ src/emap2lig/web/
 ├── state.py
 ├── results_scan.py
 └── frontend/
-    └── src/
-        ├── App.tsx                  # Tab routing
-        ├── components/
-        │   ├── SetupTab.tsx         # Model cache + GPU
-        │   ├── FindTab.tsx          # Detection workflow
-        │   ├── BuildTab.tsx         # Modeling workflow
-        │   ├── VisualizationTab.tsx # Load existing output
-        │   ├── MolstarViewer.tsx    # Mol* 3D viewer
-        │   ├── ObjectUpload.tsx     # Upload structures/maps
-        │   ├── ResultsTable.tsx     # Conformer table
-        │   ├── BlobList.tsx         # Per-blob assignment
-        │   ├── LigandInput.tsx      # Ligand YAML input
-        │   ├── MapInput.tsx         # Map input
-        │   ├── RunOptionsPanel.tsx  # Detection options panel
-        │   ├── JobStatus.tsx        # Job progress
-        │   └── tutorial/            # Interactive tutorial
-        └── lib/
-            └── api.ts              # API client
+    └── dist/              # Pre-built assets (source in shuuul/Emap2lig-web)
 ```
+
+Frontend React source: private repo **shuuul/Emap2lig-web**. Component layout mirrors
+the former in-tree `frontend/src/` tree (`App.tsx`, `components/`, `lib/api.ts`, etc.).
 
 ## API Endpoints
 
@@ -81,11 +67,13 @@ active jobs but results on disk remain accessible via the Visualization tab.
 # Backend dev (hot reload)
 uv run --group web fastapi dev emap2lig.web.app:app
 
-# Frontend dev (Vite dev server)
-cd src/emap2lig/web/frontend
+# Frontend dev — clone shuuul/Emap2lig-web (private), then:
+cd Emap2lig-web
 npm install
 npm run dev
-npm run build
+
+# Build dist into Emap2Lig checkout
+EMAP2LIG_DIST_DIR=/path/to/Emap2Lig/src/emap2lig/web/frontend/dist npm run build
 ```
 
 ## Troubleshooting
@@ -93,7 +81,7 @@ npm run build
 | Issue | Solution |
 |-------|----------|
 | Port already in use | `cli.py` auto-frees the port; or use `--port` |
-| Frontend not loading | Run `--rebuild` to force frontend rebuild |
+| Frontend not loading | Ensure `frontend/dist/` exists; rebuild from shuuul/Emap2lig-web |
 | Model download fails | Check internet; weights stored in `~/.emap2lig/models/` |
 | Job stuck at pending | Restart server; check GPU availability |
 | Mol* shows nothing | Verify map at correct contour level; check file paths |

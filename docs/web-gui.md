@@ -45,7 +45,34 @@ uv run --group web emap2lig-gui --no-browser
 |--------|-------------|
 | `--port INT` | Port (default: `40427`) |
 | `--no-browser` | Do not open a browser tab |
-| `--rebuild` | Rebuild frontend from source (requires Node.js and npm) |
+| `--rebuild` | Rebuild frontend (requires a separate [Emap2lig-web](https://github.com/shuuul/Emap2lig-web) checkout; see below) |
+
+## Frontend development
+
+React source lives in the private repository **shuuul/Emap2lig-web** (not in this repo).
+This repo only ships pre-built `frontend/dist/`.
+
+```bash
+# Clone frontend (maintainers — private repo)
+git clone git@github.com:shuuul/Emap2lig-web.git
+cd Emap2lig-web
+npm install
+
+# Terminal 1 — backend
+uv run --group web fastapi dev emap2lig.web.app:app
+
+# Terminal 2 — Vite (proxies /api → localhost:40427)
+npm run dev
+```
+
+Build into a local Emap2Lig checkout:
+
+```bash
+EMAP2LIG_DIST_DIR=/path/to/Emap2Lig/src/emap2lig/web/frontend/dist npm run build
+```
+
+Pushes to `Emap2lig-web` `main` open an automated PR here updating `frontend/dist/`.
+Merge that PR before tagging a PyPI release.
 
 ## Workflow
 

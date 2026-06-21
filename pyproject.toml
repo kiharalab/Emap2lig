@@ -51,6 +51,7 @@ emap2lig-gui = "emap2lig.web.cli:cli"
 [tool.uv.build-backend]
 # Ship only pre-built frontend/dist/ in distributions — not React source or tooling.
 source-exclude = [
+    "**/AGENTS.md",
     "**/node_modules/**",
     "**/frontend/src/**",
     "**/frontend/vite/**",
@@ -63,6 +64,7 @@ source-exclude = [
     "**/frontend/index.html",
 ]
 wheel-exclude = [
+    "**/AGENTS.md",
     "**/node_modules/**",
     "**/frontend/src/**",
     "**/frontend/vite/**",

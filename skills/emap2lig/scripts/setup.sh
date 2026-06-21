@@ -43,7 +43,7 @@ echo "✅ Installation complete"
 if command -v node &>/dev/null; then
 	echo "✅ Node.js found: $(node --version)"
 	echo "   Web GUI: uv sync --group web && uv run emap2lig-gui"
-	echo "   Frontend rebuild (--rebuild): cd src/emap2lig/web/frontend && npm install && npm run build"
+	echo "   Frontend dev: clone shuuul/Emap2lig-web, npm install, npm run dev"
 else
 	echo "ℹ️  Node.js not found — OK for normal Web GUI use (pre-built dist/)."
 	echo "   Install Node.js 18+ only if you need --rebuild / frontend dev."

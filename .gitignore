@@ -173,6 +173,3 @@ tasks/
 jobs_output/
 output*/
 outputs/
-
-# AGENTS.md files are internal documentation, not for distribution
-**/AGENTS.md

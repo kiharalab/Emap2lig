@@ -74,9 +74,9 @@ def _npm_build(npm: str, *, rebuild: bool = False) -> None:
     package_json = FRONTEND_DIR / "package.json"
     if not package_json.is_file():
         print(
-            "ERROR: frontend source (package.json) is not available.\n"
-            "  PyPI installs ship emap2lig/web/frontend/dist/ only.\n"
-            "  Remove --rebuild, or use a checkout that includes frontend/src/.",
+            "ERROR: frontend source is not available in this checkout.\n"
+            "  PyPI installs and kiharalab/Emap2Lig ship frontend/dist/ only.\n"
+            "  Build from shuuul/Emap2lig-web and copy dist/, or remove --rebuild.",
             file=sys.stderr,
         )
         sys.exit(1)
