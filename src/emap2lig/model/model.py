@@ -7,6 +7,7 @@ from huggingface_hub import hf_hub_download
 from lightning.pytorch import LightningModule
 from omegaconf import DictConfig, OmegaConf
 from safetensors.torch import load_file
+import torch
 from torch import Tensor
 
 from .modules.conf_embedder import ConformerEmbedder
@@ -24,6 +25,7 @@ class DiffusionPredictArgs:
     """Prediction arguments for DiffusionStructureModel."""
 
     multiplicity: int = 4
+    max_parallel_multiplicity: int = 8
     num_sampling_steps: int = 20
     output_format: str = "mmcif"
 
@@ -355,6 +357,7 @@ class Emap2lig(LightningModule):
         feats: dict[str, Tensor],
         num_sampling_steps: int | None = None,
         multiplicity: int = 1,
+        max_parallel_multiplicity: int | None = None,
     ) -> dict[str, Tensor]:
         out_dict = {}
 
@@ -389,49 +392,82 @@ class Emap2lig(LightningModule):
         # Update output dictionary with all auxiliary module outputs
         out_dict.update(auxiliary_outputs)
 
-        # Reshape prompt_points from [B, multiplicity, 3] to [B*multiplicity, 3]
+        if multiplicity < 1:
+            raise ValueError("multiplicity must be at least 1")
+        if max_parallel_multiplicity is None:
+            max_parallel_multiplicity = multiplicity
+        if max_parallel_multiplicity < 1:
+            raise ValueError("max_parallel_multiplicity must be at least 1")
+
+        chunk_size = min(multiplicity, max_parallel_multiplicity)
+
+        # Keep prompt points grouped as [B, multiplicity, 3] so large total
+        # multiplicity can be evaluated in smaller chunks inside one Lightning
+        # predict step.  That preserves a single Trainer progress bar while
+        # bounding peak accelerator memory.
         prompt_points = feats["prompt_points"]
-        if prompt_points.dim() == 3:
-            # [B, multiplicity, 3] -> [B*multiplicity, 3]
-            prompt_points = prompt_points.reshape(-1, 3)
+        if prompt_points.dim() == 2:
+            batch_size = feats["input_density"].shape[0]
+            prompt_points = prompt_points.reshape(batch_size, multiplicity, 3)
+        elif prompt_points.dim() != 3:
+            raise ValueError(
+                "prompt_points must have shape [B, multiplicity, 3] or "
+                f"[B*multiplicity, 3], got {tuple(prompt_points.shape)}"
+            )
 
-        # Instance segmentation + voxel feature extraction
-        (
-            augment_output,
-            instance_output,
-            voxel_features,
-            global_features,
-            selected_point_feats,
-            selected_point_coords,
-        ) = self.instance_seg.forward_embedding(
-            feats["input_density"],
-            feats["global_origin"],
-            feats["voxel_size"],
-            atom_features=atom_feats,
-            atom_mask=feats["atom_mask"],
-            prompt_point=prompt_points,
-            multiplicity=multiplicity,
-        )
-        out_dict["augment_output"] = augment_output
-        out_dict["instance_mask_output"] = instance_output
-        out_dict["voxel_features"] = voxel_features
-        out_dict["global_features"] = global_features
+        outputs: dict[str, list[Tensor]] = {
+            "augment_output": [],
+            "instance_mask_output": [],
+            "voxel_features": [],
+            "global_features": [],
+            "sampled_atom_coords": [],
+        }
 
-        # Run diffusion module (sampling)
-        sampled_atom_coords = self.diffusion_module.sample(
-            atom_inputs=atom_init_feats,
-            atom_feats=atom_feats,
-            pair_feats=pair_feats,
-            selected_point_feats=selected_point_feats,
-            selected_point_coords=selected_point_coords,
-            global_features=global_features,
-            atom_mask=feats["atom_mask"],
-            ref_pos=feats["ref_pos"],
-            prompt_points=prompt_points,
-            num_sampling_steps=num_sampling_steps,
-            multiplicity=multiplicity,
-        )
-        out_dict["sampled_atom_coords"] = sampled_atom_coords
+        for start in range(0, multiplicity, chunk_size):
+            chunk_prompt_points = prompt_points[:, start : start + chunk_size]
+            chunk_multiplicity = chunk_prompt_points.shape[1]
+            chunk_prompt_points = chunk_prompt_points.reshape(-1, 3)
+
+            # Instance segmentation + voxel feature extraction
+            (
+                augment_output,
+                instance_output,
+                voxel_features,
+                global_features,
+                selected_point_feats,
+                selected_point_coords,
+            ) = self.instance_seg.forward_embedding(
+                feats["input_density"],
+                feats["global_origin"],
+                feats["voxel_size"],
+                atom_features=atom_feats,
+                atom_mask=feats["atom_mask"],
+                prompt_point=chunk_prompt_points,
+                multiplicity=chunk_multiplicity,
+            )
+            outputs["augment_output"].append(augment_output)
+            outputs["instance_mask_output"].append(instance_output)
+            outputs["voxel_features"].append(voxel_features)
+            outputs["global_features"].append(global_features)
+
+            # Run diffusion module (sampling)
+            sampled_atom_coords = self.diffusion_module.sample(
+                atom_inputs=atom_init_feats,
+                atom_feats=atom_feats,
+                pair_feats=pair_feats,
+                selected_point_feats=selected_point_feats,
+                selected_point_coords=selected_point_coords,
+                global_features=global_features,
+                atom_mask=feats["atom_mask"],
+                ref_pos=feats["ref_pos"],
+                prompt_points=chunk_prompt_points,
+                num_sampling_steps=num_sampling_steps,
+                multiplicity=chunk_multiplicity,
+            )
+            outputs["sampled_atom_coords"].append(sampled_atom_coords)
+
+        for key, chunks in outputs.items():
+            out_dict[key] = chunks[0] if len(chunks) == 1 else torch.cat(chunks, dim=0)
 
         return out_dict
 
@@ -455,6 +491,7 @@ class Emap2lig(LightningModule):
                 batch,
                 num_sampling_steps=self.predict_args.num_sampling_steps,
                 multiplicity=self.predict_args.multiplicity,
+                max_parallel_multiplicity=self.predict_args.max_parallel_multiplicity,
             )
         except Exception as e:
             import traceback
