@@ -150,6 +150,7 @@ Then ask your agent: *"Run the Emap2lig pipeline on EMD-30556"*. Guide: [docs/ag
 | Programmatic API | [docs/api.md](docs/api.md) |
 | Fragment detection | [docs/fragment-detection.md](docs/fragment-detection.md) |
 | Model weights | [docs/models.md](docs/models.md) |
+| Release process | [docs/release.md](docs/release.md) |
 
 ## License
 
