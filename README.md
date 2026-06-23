@@ -70,7 +70,7 @@ Details: [docs/web-server.md](docs/web-server.md)
 
 #### Hardware requirements
 
-- **Linux**: NVIDIA GPU with **8 GB+ VRAM**, Post-Ampere (RTX 30xx / 40xx / 50xx or newer), CUDA 12 / 13 compatible driver
+- **Linux**: NVIDIA GPU with **8 GB+ VRAM**, Post-Ampere (RTX 30xx / 40xx / 50xx or newer), CUDA 12 / 13 compatible driver. For 8 GB GPUs, lower the Find batch size and cap Build parallel multiplicity as shown below.
 - **macOS**: Apple Silicon or MPS-capable Mac with **macOS 13.2+** for local inference
 - **Python**: 3.12 ([uv](https://docs.astral.sh/uv/) recommended)
 
@@ -78,6 +78,55 @@ Emap2lig selects the accelerator by platform: Linux uses CUDA, macOS uses MPS.
 Other platforms and CPU-only inference are not supported locally.
 
 Model weights **download automatically** from [HuggingFace](https://huggingface.co/KiharaLab/Emap2lig) on first run — no manual download step.
+
+#### GPU memory guide
+
+Two settings have the largest effect on peak GPU memory:
+
+- **Find**: `--detection-batch-size` controls the sliding-window batch size.
+  Lower values use less memory; higher values can improve throughput only when
+  enough VRAM is available.
+- **Build**: `--multiplicity` is the total number of conformers to generate.
+  `--max-parallel-multiplicity` caps how many conformers are generated in one
+  forward pass, reducing peak memory without changing the total output count.
+
+<img
+  src="https://github.com/kiharalab/Emap2lig/raw/main/assets/gpu-memory-guide.png"
+  alt="Emap2lig GPU memory guide for Find detection batch size and Build max parallel multiplicity"
+  width="850"
+/>
+
+Measured on Linux with an NVIDIA GeForce RTX 5090 32 GB, driver 610.62,
+`examples/emd_30556.map.gz`, PyTorch Lightning default precision
+(`32-true`, not bf16), and `nvidia-smi` peak sampling. Values vary with map
+size, ligand size, precision mode, driver, PyTorch/CUDA versions, and other GPU
+processes.
+
+| GPU VRAM | Suggested Find `--detection-batch-size` | Suggested Build `--max-parallel-multiplicity` | Notes |
+|----------|-----------------------------------------|-----------------------------------------------|-------|
+| 8 GB | `4` | `8` | Safer than the default Find batch size on small GPUs. |
+| 12 GB | `8` | `8` | Good balance for consumer GPUs with moderate VRAM. |
+| 16 GB | `16` | `16` | Fits the measured example with headroom. |
+| 24 GB | `16` | `32` | Build `32` is close to 24 GB; reduce to `16` if other processes use VRAM. |
+| 32 GB+ | `32` | `32` | Avoid `64` unless you have more than 32 GB free VRAM. |
+
+Example for generating 64 conformers on an 8–12 GB GPU:
+
+```bash
+emap2lig \
+  --input-map examples/emd_30556.map.gz \
+  --output-dir outputs_30556 \
+  --ligand-list examples/emd_30556.yaml \
+  --emdb-id 30556 \
+  --detection-batch-size 4 \
+  --multiplicity 64 \
+  --max-parallel-multiplicity 8
+```
+
+In the benchmark above, Build `multiplicity=64 --max-parallel-multiplicity 8`
+used about the same peak memory as `--max-parallel-multiplicity 8` (~6.3 GiB
+for the Emap2lig process), while running uncapped with 64 conformers in one pass
+used about 31.1 GiB.
 
 #### CLI
 
