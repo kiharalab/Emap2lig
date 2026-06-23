@@ -30,7 +30,7 @@ def test_multiplicity_chunks_rejects_non_positive_values(
         _multiplicity_chunks(multiplicity, max_parallel_multiplicity)
 
 
-def test_run_structure_modeling_limits_parallel_multiplicity(
+def test_run_structure_modeling_uses_one_predict_with_capped_model_parallelism(
     monkeypatch, tmp_path
 ) -> None:
     blobs_dir = tmp_path / "find_blobs"
@@ -50,16 +50,14 @@ def test_run_structure_modeling_limits_parallel_multiplicity(
         def __len__(self):
             return 1
 
-    trainer_calls: list[tuple[int, int]] = []
+    trainer_calls: list[int] = []
 
     class FakeTrainer:
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
         def predict(self, model, dataloaders):
-            trainer_calls.append(
-                (dataloaders.dataset.multiplicity, model.predict_args.multiplicity)
-            )
+            trainer_calls.append(dataloaders.dataset.multiplicity)
 
     fake_model = SimpleNamespace(predict_args=SimpleNamespace(multiplicity=None))
 
@@ -97,4 +95,6 @@ def test_run_structure_modeling_limits_parallel_multiplicity(
     )
 
     assert status == 0
-    assert trainer_calls == [(8, 8)] * 8
+    assert trainer_calls == [64]
+    assert fake_model.predict_args.multiplicity == 64
+    assert fake_model.predict_args.max_parallel_multiplicity == 8

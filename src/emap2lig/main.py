@@ -1205,13 +1205,13 @@ def load_config(
 def _multiplicity_chunks(
     multiplicity: int, max_parallel_multiplicity: int
 ) -> list[int]:
-    """Split total multiplicity into sequential prediction chunks."""
+    """Split total multiplicity into bounded in-model prediction chunks."""
     if multiplicity < 1:
         raise ValueError("multiplicity must be at least 1")
     if max_parallel_multiplicity < 1:
         raise ValueError("max_parallel_multiplicity must be at least 1")
 
-    chunks = []
+    chunks: list[int] = []
     remaining = multiplicity
     while remaining > 0:
         chunk = min(remaining, max_parallel_multiplicity)
@@ -1243,8 +1243,9 @@ def run_structure_modeling(
         gpu: CUDA GPU device ID on Linux; ignored except 0/-1 on macOS MPS.
         multiplicity: Number of conformers per blob per ligand.
         max_parallel_multiplicity: Maximum number of conformers generated in one
-            model forward pass.  Larger ``multiplicity`` values are split into
-            sequential chunks to reduce peak accelerator memory use.
+            model sub-batch.  Larger ``multiplicity`` values are split inside
+            each prediction step to reduce peak accelerator memory use while
+            keeping a single outer Lightning progress bar.
         blob_ids: If provided, only process blobs with these IDs.
             When ``None`` (default), all blobs in *blobs_dir* are processed.
 
@@ -1257,9 +1258,7 @@ def run_structure_modeling(
     build_struct_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        multiplicity_chunks = _multiplicity_chunks(
-            multiplicity, max_parallel_multiplicity
-        )
+        _multiplicity_chunks(multiplicity, max_parallel_multiplicity)
     except ValueError as exc:
         logger.error(str(exc))
         return 1
@@ -1310,13 +1309,13 @@ def run_structure_modeling(
         logger.error("No density blob files found. Exiting.")
         return 1
 
-    # Create dataset once; its multiplicity is adjusted per prediction chunk
-    # below so peak memory is bounded by max_parallel_multiplicity while the
-    # total number of generated conformers remains equal to multiplicity.
+    # Create dataset with total multiplicity so Lightning sees one batch per
+    # blob-ligand pair.  The model processes those prompt points in smaller
+    # internal chunks capped by max_parallel_multiplicity.
     dataset = LigandModelingDataset(
         density_object_list=density_blob_paths,
         ref_mol_dir=ligands_object_dir,
-        multiplicity=multiplicity_chunks[0],
+        multiplicity=multiplicity,
     )
 
     # Create dataloader — structure modeling always uses batch_size=1
@@ -1333,8 +1332,9 @@ def run_structure_modeling(
     logger.info(f"Instantiating model {cfg.model._target_}")
     model = instantiate(cfg.model)
 
-    # Set per-chunk multiplicity below (no need for model to infer it).
-    model.predict_args.multiplicity = multiplicity_chunks[0]
+    # Set multiplicity from CLI/API arguments (no need for model to infer it).
+    model.predict_args.multiplicity = multiplicity
+    model.predict_args.max_parallel_multiplicity = max_parallel_multiplicity
 
     # Create writer callback
     writer = LigandWriter(
@@ -1353,21 +1353,14 @@ def run_structure_modeling(
     logger.info("Initializing PyTorch Lightning Trainer")
     trainer = Trainer(**trainer_kwargs)
 
-    # Run prediction using dataloader directly.  Each chunk appends conformers
-    # to the same per-blob output directories; create_blob_csv_tables() sorts
-    # all rows after every chunk has finished.
+    # Run prediction using dataloader directly.  Large multiplicity values are
+    # chunked inside model.forward(), not by repeating trainer.predict(), so the
+    # user sees one Build progress pass over blob-ligand combinations.
     logger.info(
         f"Running inference on {len(dataset)} combinations with multiplicity "
         f"{multiplicity} (max parallel multiplicity {max_parallel_multiplicity})"
     )
-    for chunk_idx, chunk_multiplicity in enumerate(multiplicity_chunks, start=1):
-        dataset.multiplicity = chunk_multiplicity
-        model.predict_args.multiplicity = chunk_multiplicity
-        logger.info(
-            f"Running multiplicity chunk {chunk_idx}/{len(multiplicity_chunks)} "
-            f"with {chunk_multiplicity} conformers"
-        )
-        trainer.predict(model, dataloaders=dataloader)
+    trainer.predict(model, dataloaders=dataloader)
 
     logger.info("Inference completed.")
 
