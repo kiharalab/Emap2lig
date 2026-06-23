@@ -4,6 +4,18 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, for example v0.4.3"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to publish, for example v0.4.3"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,18 +23,25 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: astral-sh/setup-uv@v5
 
       - name: Verify tag matches pyproject.toml version
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
+          tag="$RELEASE_TAG"
           expected="${tag#v}"
           actual="$(grep -E '^version = ' pyproject.toml | sed -E 's/^version = "(.*)"/\1/')"
+          if [ -z "$tag" ] || [ "$tag" = "$GITHUB_REF" ]; then
+            echo "Release tag was not provided"
+            exit 1
+          fi
           if [ "$expected" != "$actual" ]; then
             echo "Tag $tag implies version $expected, but pyproject.toml has $actual"
             exit 1
@@ -35,7 +54,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
+          tag="$RELEASE_TAG"
           version="${tag#v}"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" dist/* --clobber
