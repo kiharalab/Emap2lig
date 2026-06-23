@@ -289,6 +289,7 @@ async def run_modeling(
             ligand_list_path=str(ligand_yaml_path),
             gpu=primary_gpu,
             multiplicity=job.multiplicity,
+            max_parallel_multiplicity=job.max_parallel_multiplicity,
             blob_ids=blob_ids,
         )
         if status != 0:
@@ -318,6 +319,7 @@ def _model_sync(
     ligand_list_path: str,
     gpu: int,
     multiplicity: int,
+    max_parallel_multiplicity: int,
     blob_ids: list[int] | None = None,
 ) -> int:
     from emap2lig.main import load_config, parse_ligand_list, run_structure_modeling
@@ -335,6 +337,7 @@ def _model_sync(
             cfg=cfg,
             gpu=gpu,
             multiplicity=multiplicity,
+            max_parallel_multiplicity=max_parallel_multiplicity,
             blob_ids=blob_ids,
         )
 

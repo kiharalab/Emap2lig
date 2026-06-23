@@ -31,33 +31,54 @@ jobs:
       - name: Build distributions
         run: uv build
 
-      - name: Create GitHub Release
+      - name: Upload distributions to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF#refs/tags/}"
           version="${tag#v}"
-          notes_file="$(mktemp)"
-          {
-            gh api \
-              --method POST \
-              "/repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
-              -f tag_name="$tag" \
-              -f target_commitish="$GITHUB_SHA" \
-              --jq .body
-            echo ""
-            echo "## Install"
-            echo ""
-            echo '```bash'
-            echo "pip install emap2lig==${version}"
-            echo "pip install 'emap2lig[web]==${version}'  # Web GUI (emap2lig-gui)"
-            echo '```'
-            echo ""
-            echo "PyPI: https://pypi.org/project/emap2lig/${version}/"
-          } > "$notes_file"
-          gh release create "$tag" dist/* \
-            --title "$tag" \
-            --notes-file "$notes_file"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+            body_file="$(mktemp)"
+            gh release view "$tag" --json body --jq .body > "$body_file"
+            if ! grep -q '^## Install$' "$body_file"; then
+              {
+                cat "$body_file"
+                echo ""
+                echo "## Install"
+                echo ""
+                echo '```bash'
+                echo "pip install emap2lig==${version}"
+                echo "pip install 'emap2lig[web]==${version}'  # Web GUI (emap2lig-gui)"
+                echo '```'
+                echo ""
+                echo "PyPI: https://pypi.org/project/emap2lig/${version}/"
+              } > "${body_file}.updated"
+              gh release edit "$tag" --notes-file "${body_file}.updated"
+            fi
+          else
+            notes_file="$(mktemp)"
+            {
+              gh api \
+                --method POST \
+                "/repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+                -f tag_name="$tag" \
+                -f target_commitish="$GITHUB_SHA" \
+                --jq .body
+              echo ""
+              echo "## Install"
+              echo ""
+              echo '```bash'
+              echo "pip install emap2lig==${version}"
+              echo "pip install 'emap2lig[web]==${version}'  # Web GUI (emap2lig-gui)"
+              echo '```'
+              echo ""
+              echo "PyPI: https://pypi.org/project/emap2lig/${version}/"
+            } > "$notes_file"
+            gh release create "$tag" dist/* \
+              --title "$tag" \
+              --notes-file "$notes_file"
+          fi
 
       - name: Publish to PyPI
         env:

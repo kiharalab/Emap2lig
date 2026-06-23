@@ -31,6 +31,7 @@ Install options: [Installation](installation.md).
 | `--emdb-id` | EMDB ID for automatic contour level lookup |
 | `--contour-level` | Manual contour level (overrides EMDB lookup) |
 | `--multiplicity` | Conformers per ligand–blob pair (default: `1`) |
+| `--max-parallel-multiplicity` | Maximum conformers generated in one forward pass (default: `8`). Lower this to reduce peak GPU memory when using large `--multiplicity`. |
 | `--seed` | Random seed (default: `42`) |
 
 Local CLI inference supports Linux/CUDA and macOS/MPS. CPU inference is not
@@ -61,6 +62,10 @@ uv run emap2lig \
   --ligand-list examples/emd_7783.yaml \
   --multiplicity 1
 ```
+
+For large conformer searches, keep `--multiplicity` as the total number of
+conformers to generate and lower `--max-parallel-multiplicity` if GPU memory is
+limited. Outputs are still written together and ranked by `consistency_iou`.
 
 ## Fragment detection
 

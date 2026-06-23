@@ -1202,6 +1202,24 @@ def load_config(
     return cfg
 
 
+def _multiplicity_chunks(
+    multiplicity: int, max_parallel_multiplicity: int
+) -> list[int]:
+    """Split total multiplicity into sequential prediction chunks."""
+    if multiplicity < 1:
+        raise ValueError("multiplicity must be at least 1")
+    if max_parallel_multiplicity < 1:
+        raise ValueError("max_parallel_multiplicity must be at least 1")
+
+    chunks = []
+    remaining = multiplicity
+    while remaining > 0:
+        chunk = min(remaining, max_parallel_multiplicity)
+        chunks.append(chunk)
+        remaining -= chunk
+    return chunks
+
+
 def run_structure_modeling(
     blobs_dir: Path | str,
     output_dir: Path | str,
@@ -1209,6 +1227,7 @@ def run_structure_modeling(
     cfg,
     gpu: int = 0,
     multiplicity: int = 1,
+    max_parallel_multiplicity: int = 8,
     blob_ids: list[int] | None = None,
 ) -> int:
     """Run structure modeling on detected blobs (Stage 2).
@@ -1223,6 +1242,9 @@ def run_structure_modeling(
         cfg: Hydra configuration object (from :func:`load_config`).
         gpu: CUDA GPU device ID on Linux; ignored except 0/-1 on macOS MPS.
         multiplicity: Number of conformers per blob per ligand.
+        max_parallel_multiplicity: Maximum number of conformers generated in one
+            model forward pass.  Larger ``multiplicity`` values are split into
+            sequential chunks to reduce peak accelerator memory use.
         blob_ids: If provided, only process blobs with these IDs.
             When ``None`` (default), all blobs in *blobs_dir* are processed.
 
@@ -1233,6 +1255,14 @@ def run_structure_modeling(
     output_dir = Path(output_dir)
     build_struct_dir = output_dir / "build_struct"
     build_struct_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        multiplicity_chunks = _multiplicity_chunks(
+            multiplicity, max_parallel_multiplicity
+        )
+    except ValueError as exc:
+        logger.error(str(exc))
+        return 1
 
     # Enforce platform accelerator inference.
     device = resolve_inference_device(gpu)
@@ -1280,11 +1310,13 @@ def run_structure_modeling(
         logger.error("No density blob files found. Exiting.")
         return 1
 
-    # Create dataset with CLI-specified multiplicity
+    # Create dataset once; its multiplicity is adjusted per prediction chunk
+    # below so peak memory is bounded by max_parallel_multiplicity while the
+    # total number of generated conformers remains equal to multiplicity.
     dataset = LigandModelingDataset(
         density_object_list=density_blob_paths,
         ref_mol_dir=ligands_object_dir,
-        multiplicity=multiplicity,
+        multiplicity=multiplicity_chunks[0],
     )
 
     # Create dataloader — structure modeling always uses batch_size=1
@@ -1301,8 +1333,8 @@ def run_structure_modeling(
     logger.info(f"Instantiating model {cfg.model._target_}")
     model = instantiate(cfg.model)
 
-    # Set multiplicity from CLI argument (no need for model to infer it)
-    model.predict_args.multiplicity = multiplicity
+    # Set per-chunk multiplicity below (no need for model to infer it).
+    model.predict_args.multiplicity = multiplicity_chunks[0]
 
     # Create writer callback
     writer = LigandWriter(
@@ -1321,9 +1353,21 @@ def run_structure_modeling(
     logger.info("Initializing PyTorch Lightning Trainer")
     trainer = Trainer(**trainer_kwargs)
 
-    # Run prediction using dataloader directly
-    logger.info(f"Running inference on {len(dataset)} combinations")
-    trainer.predict(model, dataloaders=dataloader)
+    # Run prediction using dataloader directly.  Each chunk appends conformers
+    # to the same per-blob output directories; create_blob_csv_tables() sorts
+    # all rows after every chunk has finished.
+    logger.info(
+        f"Running inference on {len(dataset)} combinations with multiplicity "
+        f"{multiplicity} (max parallel multiplicity {max_parallel_multiplicity})"
+    )
+    for chunk_idx, chunk_multiplicity in enumerate(multiplicity_chunks, start=1):
+        dataset.multiplicity = chunk_multiplicity
+        model.predict_args.multiplicity = chunk_multiplicity
+        logger.info(
+            f"Running multiplicity chunk {chunk_idx}/{len(multiplicity_chunks)} "
+            f"with {chunk_multiplicity} conformers"
+        )
+        trainer.predict(model, dataloaders=dataloader)
 
     logger.info("Inference completed.")
 
@@ -1363,7 +1407,16 @@ def main(
         None, "--ligand-list", help="Path to ligand list file"
     ),
     multiplicity: int = typer.Option(
-        1, "--multiplicity", help="Number of conformers per blob per ligand"
+        1,
+        "--multiplicity",
+        min=1,
+        help="Number of conformers per blob per ligand",
+    ),
+    max_parallel_multiplicity: int = typer.Option(
+        8,
+        "--max-parallel-multiplicity",
+        min=1,
+        help="Maximum conformers generated in one forward pass",
     ),
     seed: int = typer.Option(42, "--seed", help="Random seed"),
 ):
@@ -1410,6 +1463,7 @@ def main(
         cfg=cfg,
         gpu=gpu,
         multiplicity=multiplicity,
+        max_parallel_multiplicity=max_parallel_multiplicity,
     )
 
 

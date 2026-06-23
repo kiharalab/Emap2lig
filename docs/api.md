@@ -22,6 +22,7 @@ status = run_structure_modeling(
     cfg,
     gpu=0,
     multiplicity=4,
+    max_parallel_multiplicity=8,
 )
 ```
 
@@ -30,6 +31,10 @@ status = run_structure_modeling(
 | `load_config(gpu, ...)` | Config | Hydra `cfg` |
 | `detect_ligand_objects(input_map, output_dir, cfg, emdb_id)` | Find | `(status, blobs_dir)` |
 | `parse_ligand_list(path)` | Utility | `list[LigandRecord]` |
-| `run_structure_modeling(blobs_dir, output_dir, ligand_records, cfg, gpu, multiplicity)` | Build | `status` |
+| `run_structure_modeling(blobs_dir, output_dir, ligand_records, cfg, gpu, multiplicity, max_parallel_multiplicity=8)` | Build | `status` |
+
+`max_parallel_multiplicity` only limits how many conformers are generated in one
+forward pass; `multiplicity` remains the total conformer count. Results are
+written to the same output layout and sorted normally after inference.
 
 See also [CLI reference](cli.md) and [Output structure](output.md).
