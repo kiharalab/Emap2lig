@@ -21,6 +21,7 @@ class ModelRequest(BaseModel):
     ligand_list: list[LigandSpec]
     gpu: list[int] | int = 0
     multiplicity: int = 1
+    max_parallel_multiplicity: int = 8
 
 
 class BlobModelRequest(BaseModel):
@@ -30,6 +31,7 @@ class BlobModelRequest(BaseModel):
     ligand_list: list[LigandSpec]
     gpu: list[int] | int = 0
     multiplicity: int = 1
+    max_parallel_multiplicity: int = 8
 
 
 @router.post("/model", response_model=JobCreateResponse)
@@ -62,6 +64,7 @@ async def start_modeling(
         output_dir=detect_job.output_dir,
         gpu=gpu_list,
         multiplicity=body.multiplicity,
+        max_parallel_multiplicity=body.max_parallel_multiplicity,
         detect_job_id=detect_job.id,
     )
     # Copy blob info from detect job
@@ -125,6 +128,7 @@ async def start_blob_modeling(
         output_dir=out_dir,
         gpu=gpu_list,
         multiplicity=body.multiplicity,
+        max_parallel_multiplicity=body.max_parallel_multiplicity,
         detect_job_id=parent_id,
     )
     job.blobs = parent_blobs

@@ -80,6 +80,7 @@ class Job:
     gpu: list[int] = field(default_factory=lambda: [0])
     detection_batch_size: int | None = None
     multiplicity: int = 1
+    max_parallel_multiplicity: int = 8
 
 
 # ---------------------------------------------------------------------------
