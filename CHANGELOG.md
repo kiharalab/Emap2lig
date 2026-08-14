@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.4](https://github.com/kiharalab/Emap2lig/compare/v0.4.3...v0.4.4) (2026-08-14)
+
+
+### Bug Fixes
+
+* **build:** stop Lightning from retaining predict outputs in host memory ([f21bce0](https://github.com/kiharalab/Emap2lig/commit/f21bce048779404c0c3ae7ffdfb1eddcfaede39b))
+* **build:** stop Lightning from retaining predict outputs in host memory ([e3db398](https://github.com/kiharalab/Emap2lig/commit/e3db3987e37e25c9398a650ad02c5fbb337c5a65))
+
 ## [0.4.3](https://github.com/kiharalab/Emap2lig/compare/v0.4.2...v0.4.3) (2026-06-23)
 
 

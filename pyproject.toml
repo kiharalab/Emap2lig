@@ -1,6 +1,6 @@
 [project]
 name = "emap2lig"
-version = "0.4.3"
+version = "0.4.4"
 description = "Official Emap2lig inference pipeline for finding ligand density blobs and building atomic ligand structures in cryo-EM maps."
 readme = "README.md"
 authors = [
