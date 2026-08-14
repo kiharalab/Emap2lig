@@ -50,14 +50,19 @@ def test_run_structure_modeling_uses_one_predict_with_capped_model_parallelism(
         def __len__(self):
             return 1
 
-    trainer_calls: list[int] = []
+    trainer_calls: list[dict[str, object]] = []
 
     class FakeTrainer:
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
-        def predict(self, model, dataloaders):
-            trainer_calls.append(dataloaders.dataset.multiplicity)
+        def predict(self, model, dataloaders, return_predictions=None):
+            trainer_calls.append(
+                {
+                    "multiplicity": dataloaders.dataset.multiplicity,
+                    "return_predictions": return_predictions,
+                }
+            )
 
     fake_model = SimpleNamespace(predict_args=SimpleNamespace(multiplicity=None))
 
@@ -95,6 +100,6 @@ def test_run_structure_modeling_uses_one_predict_with_capped_model_parallelism(
     )
 
     assert status == 0
-    assert trainer_calls == [64]
+    assert trainer_calls == [{"multiplicity": 64, "return_predictions": False}]
     assert fake_model.predict_args.multiplicity == 64
     assert fake_model.predict_args.max_parallel_multiplicity == 8

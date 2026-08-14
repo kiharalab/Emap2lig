@@ -1353,14 +1353,18 @@ def run_structure_modeling(
     logger.info("Initializing PyTorch Lightning Trainer")
     trainer = Trainer(**trainer_kwargs)
 
-    # Run prediction using dataloader directly.  Large multiplicity values are
+    # Run prediction using dataloader directly. Large multiplicity values are
     # chunked inside model.forward(), not by repeating trainer.predict(), so the
     # user sees one Build progress pass over blob-ligand combinations.
+    # LigandWriter already persists each batch. Lightning defaults to
+    # return_predictions=True, which copies every predict_step output onto the
+    # host and retains it until predict() returns. That is ~27 MiB per
+    # candidate from voxel_features [M, 64, 48, 48, 48] float32.
     logger.info(
         f"Running inference on {len(dataset)} combinations with multiplicity "
         f"{multiplicity} (max parallel multiplicity {max_parallel_multiplicity})"
     )
-    trainer.predict(model, dataloaders=dataloader)
+    trainer.predict(model, dataloaders=dataloader, return_predictions=False)
 
     logger.info("Inference completed.")
 
