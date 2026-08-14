@@ -471,7 +471,23 @@ class Emap2lig(LightningModule):
 
         return out_dict
 
-    def predict_step(self, batch, batch_idx):
+    def predict_step(
+        self, batch: dict[str, Any], batch_idx: int
+    ) -> dict[str, Tensor] | None:
+        """Run one blob-ligand inference batch.
+
+        Returns only the tensors ``LigandWriter`` needs. The full ``forward()``
+        dict includes ``voxel_features`` of shape ``[M, 64, 48, 48, 48]``
+        (~27 MiB per candidate). Lightning copies ``predict_step`` outputs to
+        host memory when ``return_predictions=True``.
+
+        Args:
+            batch: Collated ``LigandModelingDataset`` item.
+            batch_idx: Lightning predict batch index.
+
+        Returns:
+            Writer outputs, or ``None`` when inference fails.
+        """
         # identifier / class_name are lists (one per item in batch)
         identifiers = batch.get("identifier", batch.get("class_name", ["unknown"]))
         label = identifiers[0] if isinstance(identifiers, list) else identifiers
@@ -500,4 +516,7 @@ class Emap2lig(LightningModule):
             logger.error(traceback.format_exc())
             return None
 
-        return out_dict
+        return {
+            "sampled_atom_coords": out_dict["sampled_atom_coords"],
+            "instance_mask_output": out_dict["instance_mask_output"],
+        }
