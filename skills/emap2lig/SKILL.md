@@ -301,7 +301,7 @@ uv run fragment-detect \
 - **No GPU**: The pipeline supports CPU fallback but is significantly slower.
 - **Multiplicity**: Higher values (>3) generate more conformers per blob but
   increase runtime linearly.
-- **Blob limit**: The pipeline exits if >100 blobs are detected.
+- **Blob limit**: The pipeline stops with exit code 1 if >100 blobs are detected.
 - **Contour level**: If you don't know the contour level, use `--emdb-id` to
   auto-fetch it from EMDB. For custom maps, try levels between 0.02–0.05.
 - **Output inspection**: Use ChimeraX with the generated `.cmm` prompt files

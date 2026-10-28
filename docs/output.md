@@ -44,4 +44,4 @@ output_dir/
 - Candidates are ranked by `consistency_iou`
 - Per-conformer Chimera markers: `blob_N/{conformer_name}_prompt.cmm`
 - Top result per blob is copied to `build_struct/best/`
-- Pipeline exits early if more than **100** blobs are detected
+- The pipeline stops (exit code 1) if more than **100** blobs are detected; the blobs are still written

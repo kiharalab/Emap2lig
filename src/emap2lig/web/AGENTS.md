@@ -9,13 +9,13 @@ Web GUI for Emap2lig inference at `src/emap2lig/web/`. Find and Build are separa
 Backend: **FastAPI**. Frontend: **React + shadcn/ui** with **Mol\***.
 
 Frontend **source** is in private repo **shuuul/Emap2lig-web**. This repo tracks
-only `frontend/dist/` (synced via CI PR).
+only `frontend/dist/` (synced via CI PR). The `emap2lig-gui` launcher lives in
+`emap2lig/cli/gui.py`; output paths come from `emap2lig.layout.OutputLayout`.
 
 ## STRUCTURE
 
 ```
 src/emap2lig/web/
-├── cli.py              # Typer launcher (`emap2lig-gui` entry point)
 ├── app.py              # FastAPI app factory
 ├── routers/            # detect, model, jobs, files, download
 ├── schemas.py

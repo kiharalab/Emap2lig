@@ -28,7 +28,7 @@ for each blob.
 | `--detection-batch-size` | `INTEGER` | 16 | Batch size for sliding window |
 | `--emdb-id` | `TEXT` | — | EMDB ID for contour level lookup |
 | `--contour-level` | `FLOAT` | — | Manual contour level override |
-| `--ligand-list` | `TEXT` | — | Path to ligand list YAML |
+| `--ligand-list` | `PATH` | required | Path to ligand list YAML |
 | `--multiplicity` | `INTEGER` | `1` | Conformers per blob per ligand |
 | `--seed` | `INTEGER` | `42` | Random seed |
 
@@ -57,32 +57,24 @@ maps without structure modeling.
 
 ## Programmatic API (Python)
 
-Import from `emap2lig.main` for scripting:
+Import from the top-level package for scripting:
 
 ```python
-from emap2lig.main import load_config, detect_ligand_objects, run_structure_modeling
-
-# Load config
-cfg = load_config(gpu=0, detection_batch_size=4, contour_level=None)
-
-# Stage 1: detect blobs
-status, blobs_dir = detect_ligand_objects(
-    input_map="path/to/map.mrc",
-    output_dir="./output",
-    cfg=cfg,
-    emdb_id="30556",
+from emap2lig import (
+    InferenceConfig,
+    detect_ligand_objects,
+    parse_ligand_list,
+    run_structure_modeling,
 )
 
-# Stage 2: model structures
-ligand_records = [{"ccd": "HEM"}, {"ccd": "FAD"}]
-status = run_structure_modeling(
-    blobs_dir=blobs_dir,
-    output_dir="./output",
-    ligand_records=ligand_records,
-    cfg=cfg,
-    gpu=0,
-    multiplicity=1,
-)
+cfg = InferenceConfig(gpu=0, detection_batch_size=4, multiplicity=1)
+
+# Stage 1: detect blobs (raises NoBlobsDetectedError / TooManyBlobsError)
+blobs_dir = detect_ligand_objects("path/to/map.mrc", "./output", cfg, emdb_id="30556")
+
+# Stage 2: model structures into the blobs under ./output
+ligand_records = parse_ligand_list("ligands.yaml")
+build_dir = run_structure_modeling("./output", ligand_records, cfg)
 ```
 
 **Utility functions:**
@@ -90,18 +82,21 @@ status = run_structure_modeling(
 | Function | Description |
 |----------|-------------|
 | `parse_ligand_list(path)` | Parse a YAML ligand list → `list[LigandRecord]` |
-| `prepare_ligand_dataset(records, output_dir, ligands_dir)` | Prepare ligand data for modeling |
+| `write_ligand_list(records, path)` | Write records back as a YAML ligand list |
+| `prepare_ligands(records, ligands_dir)` | Featurize ligands into `<ligands_dir>/<name>.npz` |
 
 ## Configuration
 
 There is no config file. Defaults live in `src/emap2lig/config.py`
-(`InferenceConfig`); adjust them via CLI flags, the web GUI, or `load_config(...)`:
+(`InferenceConfig`); adjust them via CLI flags, the web GUI, or `InferenceConfig(...)`:
 
 | Field | CLI Equivalent | Description |
 |-------|---------------|-------------|
 | `gpu` | `--gpu` | CUDA device ID (default: 0) |
 | `detection_batch_size` | `--detection-batch-size` | Batch size for detection (default: 16) |
 | `contour_level` | `--contour-level` | Manual contour level (default: auto) |
+| `multiplicity` | `--multiplicity` | Conformers per blob per ligand (default: 1) |
+| `max_parallel_multiplicity` | `--max-parallel-multiplicity` | Conformers per forward pass (default: 8) |
 | `num_sampling_steps` | `--num-sampling-steps` | Diffusion sampling steps (default: 100) |
 
 ## Supported Input Formats
