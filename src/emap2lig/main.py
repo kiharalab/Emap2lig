@@ -16,7 +16,7 @@ from hydra.utils import instantiate
 from lightning import Trainer, seed_everything
 from loguru import logger
 from rdkit import Chem
-from skimage import measure
+from scipy import ndimage
 from torch.utils.data import DataLoader
 import typer
 
@@ -393,25 +393,27 @@ def detect_ligand_objects(
         # Split the ligand mask into separate objects and save them
         logger.info("Splitting ligand mask into separate objects")
 
-        # Label connected components in the ligand mask
-        labeled_mask = measure.label(ligand_mask_obj.grid_data, connectivity=3)
-        logger.info(f"Found {np.max(labeled_mask)} objects in the ligand mask")
+        # Label connected components in the ligand mask (26-connectivity)
+        labeled_mask, num_objects = ndimage.label(
+            ligand_mask_obj.grid_data, structure=np.ones((3, 3, 3), dtype=int)
+        )
+        logger.info(f"Found {num_objects} objects in the ligand mask")
 
-        # Extract object information
-        props = measure.regionprops(labeled_mask)
+        # Voxel count per label; index 0 is background
+        areas = np.bincount(labeled_mask.ravel())
 
         i = 0
         # Process each object
-        for prop in props:
+        for label in range(1, num_objects + 1):
             # Skip very small objects (likely noise)
-            if prop.area < 32:
+            if areas[label] < 32:
                 continue
 
             i += 1
 
             # Create a binary mask for this object
             object_mask = np.zeros_like(labeled_mask, dtype=np.uint8)
-            object_mask[labeled_mask == prop.label] = 1
+            object_mask[labeled_mask == label] = 1
 
             # Create MapObject for this object
             mask_map = MapObject(
@@ -462,7 +464,7 @@ def detect_ligand_objects(
             sys.exit(1)
 
         # Check if any objects were detected
-        if len(props) == 0:
+        if num_objects == 0:
             logger.warning("No ligand blobs detected")
             return 1, blobs_dir
 
