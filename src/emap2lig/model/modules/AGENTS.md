@@ -35,7 +35,7 @@ Central module for chemical feature propagation, following the AlphaFold3 design
 4. `TriangleAttentionStarting/EndingNode` — axial pair attention
 5. `Transition` — gated MLP on atoms and pairs separately
 
-Optional `cuequivariance` CUDA kernels and `fairscale` activation checkpointing.
+Optional `cuequivariance` CUDA kernels and activation checkpointing (`layers/checkpoint.py`, wraps `torch.utils.checkpoint`).
 
 ### AuxiliaryModule (`pairformer.py`, lines 292-441)
 Auxiliary prediction heads from PairFormer output:
@@ -94,9 +94,5 @@ seg/ provides:
   MUNetBackbone, SegHead
 
 External:
-  fairscale (activation checkpointing), einops (rearrange)
+  einops (rearrange)
 ```
-
-## ANTI-PATTERNS
-
-- `fairscale` import may fail on systems without it — `pairformer.py` and `conditioning.py` import at top level

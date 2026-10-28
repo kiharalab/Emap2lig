@@ -495,7 +495,6 @@ dependencies = [
     { name = "cuequivariance-ops-torch-cu12", marker = "sys_platform == 'linux'" },
     { name = "cuequivariance-torch", marker = "sys_platform == 'linux'" },
     { name = "einops" },
-    { name = "fairscale" },
     { name = "gemmi" },
     { name = "huggingface-hub" },
     { name = "hydra-core" },
@@ -536,7 +535,6 @@ requires-dist = [
     { name = "cuequivariance-ops-torch-cu12", marker = "sys_platform == 'linux'", specifier = ">=0.5.2" },
     { name = "cuequivariance-torch", marker = "sys_platform == 'linux'", specifier = ">=0.5.2" },
     { name = "einops", specifier = ">=0.8.1" },
-    { name = "fairscale", specifier = ">=0.4.13" },
     { name = "fastapi", extras = ["standard"], marker = "extra == 'web'", specifier = ">=0.128.6" },
     { name = "gemmi", specifier = ">=0.7.1" },
     { name = "huggingface-hub", specifier = ">=0.31.1" },
@@ -566,16 +564,6 @@ dev = [
     { name = "types-tqdm", specifier = ">=4.70.0.20260906" },
 ]
 web = [{ name = "fastapi", extras = ["standard"], specifier = ">=0.128.6" }]
-
-[[package]]
-name = "fairscale"
-version = "0.4.13"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "torch" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/08/b3334d7b543ac10dcb129cef4f84723ab696725512f18d69ab3a784b0bf5/fairscale-0.4.13.tar.gz", hash = "sha256:1b797825c427f5dba92253fd0d8daa574e8bd651a2423497775fab1b30cfb768", size = 266261, upload-time = "2022-12-11T18:09:16.892Z" }
 
 [[package]]
 name = "fastapi"
