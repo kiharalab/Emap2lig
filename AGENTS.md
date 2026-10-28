@@ -106,7 +106,7 @@ uv run --group web emap2lig-gui
 
 ## CONVENTIONS (THIS PROJECT)
 
-- **Python**: 3.12 (uv-managed, uv_build build backend)
+- **Python**: 3.12–3.14 (uv-managed, uv_build build backend)
 - **Version source of truth**: `pyproject.toml` (`[project].version`) for the Python package; align `Emap2lig-web` `package.json` before a release. After changing the Python version, run `uv lock`. Do not hand-edit generated frontend assets for version changes — merge the CI sync PR from `shuuul/Emap2lig-web`. Only `web/frontend/dist/` is included in published packages.
 - **Commits**: do not add AI/agent co-author trailers (for example `Co-authored-by: Amp ...`) to commit messages.
 - **Formatter**: Ruff — 88 chars, double quotes, space indent

@@ -15,10 +15,10 @@ if ! command -v uv &>/dev/null; then
 fi
 echo "✅ uv found: $(uv --version)"
 
-# Check Python (3.12+)
+# Check Python (3.12–3.14)
 PY_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "0.0")
-if [ "$(echo "$PY_VERSION" | cut -d. -f1)" -lt 3 ] || { [ "$(echo "$PY_VERSION" | cut -d. -f1)" -eq 3 ] && [ "$(echo "$PY_VERSION" | cut -d. -f2)" -lt 12 ]; }; then
-	echo "❌ Python 3.12+ required, found: $PY_VERSION"
+if [ "$(echo "$PY_VERSION" | cut -d. -f1)" -ne 3 ] || [ "$(echo "$PY_VERSION" | cut -d. -f2)" -lt 12 ] || [ "$(echo "$PY_VERSION" | cut -d. -f2)" -gt 14 ]; then
+	echo "❌ Python 3.12–3.14 required, found: $PY_VERSION"
 	echo "   Install via uv: uv python install 3.12"
 	exit 1
 fi

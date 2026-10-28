@@ -23,7 +23,7 @@ servers; upload inputs in the browser and download results when jobs finish.
 | | Web server | Local ([Usage](../README.md#usage)) |
 |---|------------|--------------------------------------|
 | Accelerator | Not required | Linux/CUDA or macOS/MPS required |
-| Install | None | `uv` + Python 3.12 |
+| Install | None | `uv` + Python 3.12–3.14 |
 | Stages | Separate Find and Build pages | Full pipeline via CLI, Web GUI, or API |
 
 For hardware, installation, and programmatic control, use the [local](installation.md)

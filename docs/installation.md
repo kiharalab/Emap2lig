@@ -1,6 +1,6 @@
 # Installation
 
-Emap2lig targets **Python 3.12** and **uv** for dependency management.
+Emap2lig supports **Python 3.12–3.14** and uses **uv** for dependency management.
 
 ## Option A: CLI only (`uv tool install` or PyPI)
 

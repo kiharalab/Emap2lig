@@ -7,7 +7,7 @@ authors = [
     { name = "Shu Li", email = "li3916@purdue.edu" }
 ]
 license = { file = "LICENSE" }
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.15"
 dependencies = [
     "cuequivariance-ops-torch-cu12>=0.5.2 ; sys_platform == 'linux'",
     "cuequivariance-torch>=0.5.2 ; sys_platform == 'linux'",
