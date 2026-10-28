@@ -5,7 +5,7 @@ Usage (from the repo root):
     uv run --group web emap2lig-gui [OPTIONS]
 
 Or:
-    uv run --group web python -m emap2lig.web.cli [OPTIONS]
+    uv run --group web python -m emap2lig.web [OPTIONS]
 
 Options:
     --port INT       Port to serve on (default: 40427)
@@ -33,8 +33,7 @@ from typing import Annotated
 
 import typer
 
-WEB_DIR = Path(__file__).resolve().parent
-DIST_DIR = WEB_DIR / "frontend" / "dist"
+DIST_DIR = Path(__file__).resolve().parent.parent / "web" / "frontend" / "dist"
 DEFAULT_PORT = 40427
 
 cli = typer.Typer(add_completion=False)
@@ -132,7 +131,7 @@ def main(
 
     import uvicorn
 
-    from emap2lig.log import setup_logging
+    from emap2lig.utils.log import setup_logging
 
     setup_logging()
 

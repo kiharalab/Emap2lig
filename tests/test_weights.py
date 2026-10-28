@@ -1,10 +1,10 @@
-"""Tests for the shared storage root used by weights and the web GUI."""
+"""Tests for the storage root and weight-file helpers."""
 
 from pathlib import Path
 
 import pytest
 
-from emap2lig import main, storage
+from emap2lig.utils import storage, weights
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +18,9 @@ def test_set_home_moves_model_paths(tmp_path: Path) -> None:
     storage.set_home(tmp_path)
 
     assert storage.get_model_dir() == tmp_path / "models"
-    assert main.get_model_path("w.safetensors") == tmp_path / "models" / "w.safetensors"
+    assert (
+        weights.get_model_path("w.safetensors") == tmp_path / "models" / "w.safetensors"
+    )
 
 
 def test_fetch_weights_downloads_into_current_home(
@@ -32,15 +34,15 @@ def test_fetch_weights_downloads_into_current_home(
         target.write_bytes(b"")
         return str(target)
 
-    monkeypatch.setattr(storage, "hf_hub_download", fake_download)
+    monkeypatch.setattr(weights, "hf_hub_download", fake_download)
     storage.set_home(tmp_path)
 
-    path = storage.fetch_weights("repo", "w.safetensors")
+    path = weights.fetch_weights("w.safetensors", repo_id="repo")
     assert path == tmp_path / "models" / "w.safetensors"
     assert calls == [str(tmp_path / "models")]
 
     # A second call finds the cached file and does not download again.
-    assert storage.fetch_weights("repo", "w.safetensors") == path
+    assert weights.fetch_weights("w.safetensors", repo_id="repo") == path
     assert len(calls) == 1
 
 

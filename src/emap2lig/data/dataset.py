@@ -1,7 +1,6 @@
 import logging
 import torch
 from pathlib import Path
-from rdkit import Chem
 from torch.utils.data import Dataset
 import numpy as np
 import gemmi
@@ -11,10 +10,6 @@ from emap2lig.data.const import num_elements
 from emap2lig.data.transforms import center_random_augmentation
 
 logger = logging.getLogger(__name__)
-
-# Set default pickle properties
-pickle_option = Chem.PropertyPickleOptions.AllProps
-Chem.SetDefaultPickleProperties(pickle_option)
 
 
 def _get_instance_center(

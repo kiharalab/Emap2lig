@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import logging
 from pathlib import Path
 from typing import Literal
@@ -85,6 +85,10 @@ class MapObject(NumpySerializable):
     def is_empty(self) -> bool:
         """Check if the voxel data is effectively empty (all values close to zero)."""
         return bool(np.allclose(self.grid_data, 0, atol=1e-12))
+
+    def with_grid(self, grid_data: np.ndarray) -> "MapObject":
+        """A map on the same grid (voxel size, origin, EMDB ID) with new values."""
+        return replace(self, grid_data=grid_data)
 
     def __mul__(self, other: "MapObject") -> "MapObject":
         """Multiply two maps element-wise."""

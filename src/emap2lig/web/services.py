@@ -8,21 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import platform
 import sys
 from pathlib import Path
 
-import yaml
-
-from ..storage import get_home, get_model_dir, set_home
-from .results_scan import (
-    PREPROCESS_DIR,
-    resolve_blobs_dir,
-    resolve_results_dir,
-    scan_blobs,
-    scan_results,
-    unified_map_path,
-)
+from ..utils.storage import get_home, get_model_dir, set_home
+from ..layout import OutputLayout
+from .results_scan import resolve_blobs_dir, scan_blobs, scan_results
 from .schemas import LigandSpec
 from .state import Job
 
@@ -139,57 +130,63 @@ def _ensure_jobs_root() -> Path:
 
 def write_ligand_yaml(specs: list[LigandSpec], output_dir: Path, job_id: str) -> Path:
     """Write frontend ligand specs as a CLI-compatible YAML file."""
-    preprocess_dir = output_dir / PREPROCESS_DIR
-    preprocess_dir.mkdir(parents=True, exist_ok=True)
-    yaml_path = preprocess_dir / f"ligand_list_{job_id}.yaml"
+    from emap2lig.data.ligand_list import write_ligand_list
+    from emap2lig.data.types import LigandRecord
 
-    items: list[dict] = []
+    preprocess_dir = OutputLayout(output_dir).preprocess
+    preprocess_dir.mkdir(parents=True, exist_ok=True)
+
+    records: list[LigandRecord] = []
     for spec in specs:
+        blobs = sorted({int(b) for b in spec.blob_id}) if spec.blob_id else None
         if spec.type == "CCD":
             name = (spec.name or "").strip().upper()
-            if not name:
-                continue
-            item: dict = {"CCD": name}
+            if name:
+                records.append(LigandRecord(type="CCD", name=name, blobs=blobs))
         elif spec.type == "SMILES":
             smiles = (spec.smiles or "").strip()
-            if not smiles:
-                continue
-            item = {"SMILES": smiles}
-        else:
-            residues = spec.residues or {}
-            if not residues:
-                continue
-            residue_lines = [
-                f"{rid}. {str(code).strip().upper()}"
-                for rid, code in sorted(
-                    ((int(k), v) for k, v in residues.items()),
-                    key=lambda kv: kv[0],
+            if smiles:
+                records.append(
+                    LigandRecord(type="SMILES", name="", blobs=blobs, smiles=smiles)
                 )
+        else:
+            residues = {
+                int(rid): str(code).strip().upper()
+                for rid, code in (spec.residues or {}).items()
                 if str(code).strip()
-            ]
-            if not residue_lines:
-                continue
-            branched: dict = {"residues": residue_lines}
-            if spec.bonds:
-                branched["bonds"] = spec.bonds
-            item = {"BRANCHED": branched}
+            }
+            if residues:
+                records.append(
+                    LigandRecord(
+                        type="BRANCHED",
+                        name="",
+                        blobs=blobs,
+                        residues=residues,
+                        bonds=spec.bonds,
+                    )
+                )
 
-        if spec.blob_id:
-            blob_ids = sorted({int(b) for b in spec.blob_id})
-            if blob_ids:
-                item["blob_id"] = blob_ids
-
-        items.append(item)
-
-    with open(yaml_path, "w") as f:
-        yaml.safe_dump(items, f, sort_keys=False)
-
-    return yaml_path
+    return write_ligand_list(records, preprocess_dir / f"ligand_list_{job_id}.yaml")
 
 
 # ---------------------------------------------------------------------------
-# Stage 1 — Detection
+# Pipeline stages
 # ---------------------------------------------------------------------------
+
+
+def _job_config(job: Job):
+    """Runtime options for *job*; unset fields keep the pipeline defaults."""
+    from emap2lig.config import InferenceConfig
+
+    options = {
+        "gpu": job.gpu[0] if job.gpu else 0,  # one device per stage
+        "contour_level": job.contour_level,
+        "multiplicity": job.multiplicity,
+        "max_parallel_multiplicity": job.max_parallel_multiplicity,
+        "detection_batch_size": job.detection_batch_size,
+        "num_sampling_steps": job.num_sampling_steps,
+    }
+    return InferenceConfig(**{k: v for k, v in options.items() if v is not None})
 
 
 async def run_detection(job: Job) -> None:
@@ -198,35 +195,19 @@ async def run_detection(job: Job) -> None:
     job.progress = "Loading configuration..."
     try:
         validate_gpu_selection(job.gpu)
-        # Use first GPU for detection (single-device operation)
-        primary_gpu = job.gpu[0] if job.gpu else 0
-        status, blobs_dir = await asyncio.to_thread(
-            _detect_sync,
-            job=job,
-            input_map=str(job.input_map_path),
-            output_dir=str(job.output_dir),
-            gpu=primary_gpu,
-            detection_batch_size=job.detection_batch_size,
-            contour_level=job.contour_level,
-            emdb_id=job.emdb_id,
-        )
-        if status != 0:
-            job.status = "failed"
-            job.error = "Detection returned non-zero status"
-            return
+        blobs_dir = await asyncio.to_thread(_detect_sync, job)
 
-        # Populate blob info
-        blobs = scan_blobs(blobs_dir) if blobs_dir is not None else []
+        blobs = scan_blobs(blobs_dir)
         job.blobs = blobs
         job.num_blobs = len(blobs)
 
-        # Find unified map
-        unified_map = unified_map_path(job.output_dir)
-        if not unified_map.exists():
+        layout = OutputLayout(job.output_dir)
+        if not layout.unified_map.exists():
             raise FileNotFoundError(
-                f"Detection completed but unified map was not found at {unified_map}"
+                "Detection completed but unified map was not found at "
+                f"{layout.unified_map}"
             )
-        job.unified_map_path = str(unified_map.relative_to(job.output_dir))
+        job.unified_map_path = str(layout.unified_map.relative_to(job.output_dir))
 
         job.status = "completed"
         job.progress = f"Detected {len(blobs)} blobs"
@@ -236,32 +217,15 @@ async def run_detection(job: Job) -> None:
         job.error = str(e)
 
 
-def _detect_sync(
-    *,
-    job: Job,
-    input_map: str,
-    output_dir: str,
-    gpu: int,
-    detection_batch_size: int | None,
-    contour_level: float | None,
-    emdb_id: str | None,
-) -> tuple[int, Path | None]:
-    from emap2lig.main import detect_ligand_objects, load_config
+def _detect_sync(job: Job) -> Path:
+    from emap2lig.pipeline import detect_ligand_objects
 
     with _ProgressCapture(job):
-        job.progress = "Loading model configuration..."
-        cfg = load_config(
-            gpu=gpu,
-            detection_batch_size=detection_batch_size,
-            contour_level=contour_level,
-        )
+        cfg = _job_config(job)
         job.progress = "Running blob detection..."
-        return detect_ligand_objects(input_map, output_dir, cfg, emdb_id)
-
-
-# ---------------------------------------------------------------------------
-# Stage 2 — Structure Modeling
-# ---------------------------------------------------------------------------
+        return detect_ligand_objects(
+            job.input_map_path, job.output_dir, cfg, job.emdb_id
+        )
 
 
 async def run_modeling(
@@ -281,30 +245,13 @@ async def run_modeling(
     )
     try:
         validate_gpu_selection(job.gpu)
-        blobs_dir = resolve_blobs_dir(job.output_dir)
+        resolve_blobs_dir(job.output_dir)
         ligand_yaml_path = write_ligand_yaml(ligand_specs, job.output_dir, job.id)
-
-        # Use first GPU for load_config, pass full list for Trainer devices
-        primary_gpu = job.gpu[0] if job.gpu else 0
-        status = await asyncio.to_thread(
-            _model_sync,
-            job=job,
-            blobs_dir=str(blobs_dir),
-            output_dir=str(job.output_dir),
-            ligand_list_path=str(ligand_yaml_path),
-            gpu=primary_gpu,
-            multiplicity=job.multiplicity,
-            max_parallel_multiplicity=job.max_parallel_multiplicity,
-            num_sampling_steps=job.num_sampling_steps,
-            blob_ids=blob_ids,
+        results_dir = await asyncio.to_thread(
+            _model_sync, job, ligand_yaml_path, blob_ids
         )
-        if status != 0:
-            job.status = "failed"
-            job.error = "Modeling returned non-zero status"
-            return
 
-        # Populate results
-        job.results = scan_results(resolve_results_dir(job.output_dir))
+        job.results = scan_results(results_dir)
         job.status = "completed"
         job.progress = (
             "Incremental modeling complete"
@@ -318,34 +265,18 @@ async def run_modeling(
 
 
 def _model_sync(
-    *,
-    job: Job,
-    blobs_dir: str,
-    output_dir: str,
-    ligand_list_path: str,
-    gpu: int,
-    multiplicity: int,
-    max_parallel_multiplicity: int,
-    num_sampling_steps: int | None = None,
-    blob_ids: list[int] | None = None,
-) -> int:
-    from emap2lig.main import load_config, parse_ligand_list, run_structure_modeling
+    job: Job, ligand_list_path: Path, blob_ids: list[int] | None = None
+) -> Path:
+    from emap2lig.data.ligand_list import parse_ligand_list
+    from emap2lig.pipeline import run_structure_modeling
 
     with _ProgressCapture(job):
-        job.progress = "Loading model configuration..."
-        cfg = load_config(gpu=gpu, num_sampling_steps=num_sampling_steps)
+        cfg = _job_config(job)
         job.progress = "Parsing ligand YAML..."
-        ligand_records = parse_ligand_list(Path(ligand_list_path))
+        ligand_records = parse_ligand_list(ligand_list_path)
         job.progress = "Running structure modeling..."
         return run_structure_modeling(
-            blobs_dir=blobs_dir,
-            output_dir=output_dir,
-            ligand_records=ligand_records,
-            cfg=cfg,
-            gpu=gpu,
-            multiplicity=multiplicity,
-            max_parallel_multiplicity=max_parallel_multiplicity,
-            blob_ids=blob_ids,
+            job.output_dir, ligand_records, cfg, blob_ids=blob_ids
         )
 
 
@@ -360,12 +291,12 @@ async def download_models() -> dict[str, bool]:
 
 
 def _download_models_sync() -> dict[str, bool]:
-    from emap2lig.main import MODEL_FILES, download_weights
+    from emap2lig.utils.weights import MODEL_FILES, fetch_weights
 
     results = {}
     for key, filename in MODEL_FILES.items():
         try:
-            download_weights(filename=filename)
+            fetch_weights(filename)
             results[key] = True
         except Exception as e:
             logger.warning(f"Failed to download {filename}: {e}")
@@ -376,7 +307,7 @@ def _download_models_sync() -> dict[str, bool]:
 def check_model_cache() -> dict[str, bool]:
     """Check if models are already downloaded to the model directory."""
     try:
-        from emap2lig.main import check_weights
+        from emap2lig.utils.weights import check_weights
 
         return check_weights()
     except Exception:
@@ -395,7 +326,7 @@ def get_cache_info() -> dict:
     Model weights live inside ``<cache_dir>/models/``.
     """
     try:
-        from emap2lig.main import MODEL_FILES, get_model_path
+        from emap2lig.utils.weights import MODEL_FILES, get_model_path
 
         cache_dir = get_home()
 
@@ -437,62 +368,9 @@ def set_cache_dir(new_dir: str) -> dict:
 def list_gpus() -> dict:
     """Detect the platform-supported inference accelerator."""
     try:
-        import torch
+        from emap2lig.utils.device import list_accelerators
 
-        if sys.platform.startswith("linux"):
-            if not torch.cuda.is_available():
-                return {
-                    "cuda_available": False,
-                    "mps_available": False,
-                    "accelerator": None,
-                    "gpus": [],
-                }
-
-            gpus = []
-            for i in range(torch.cuda.device_count()):
-                props = torch.cuda.get_device_properties(i)
-                gpus.append(
-                    {
-                        "id": i,
-                        "name": props.name,
-                        "memory_mb": props.total_memory // (1024 * 1024),
-                    }
-                )
-            return {
-                "cuda_available": True,
-                "mps_available": False,
-                "accelerator": "cuda",
-                "gpus": gpus,
-            }
-
-        if sys.platform == "darwin":
-            mps_available = bool(
-                hasattr(torch.backends, "mps")
-                and torch.backends.mps.is_built()
-                and torch.backends.mps.is_available()
-            )
-            version = platform.mac_ver()[0]
-            parts = version.split(".") if version else []
-            try:
-                macos_supports_conv3d = (int(parts[0]), int(parts[1])) >= (13, 2)
-            except (IndexError, ValueError):
-                macos_supports_conv3d = False
-            supported = mps_available and macos_supports_conv3d
-            return {
-                "cuda_available": False,
-                "mps_available": supported,
-                "accelerator": "mps" if supported else None,
-                "gpus": [{"id": 0, "name": "Apple MPS", "memory_mb": 0}]
-                if supported
-                else [],
-            }
-
-        return {
-            "cuda_available": False,
-            "mps_available": False,
-            "accelerator": None,
-            "gpus": [],
-        }
+        return list_accelerators()
     except Exception:
         return {
             "cuda_available": False,
@@ -504,24 +382,6 @@ def list_gpus() -> dict:
 
 def validate_gpu_selection(gpu_ids: list[int]) -> None:
     """Validate selected accelerator IDs for the current platform."""
-    gpu_info = list_gpus()
-    if not gpu_info["gpus"]:
-        raise ValueError(
-            "No supported accelerator is available. Emap2lig inference supports "
-            "Linux/CUDA and macOS/MPS only."
-        )
+    from emap2lig.utils.device import validate_device_ids
 
-    if not gpu_ids:
-        raise ValueError("No accelerator selected. Please select a device in Setup.")
-
-    available_ids = {gpu["id"] for gpu in gpu_info["gpus"]}
-    invalid_ids = sorted({gpu_id for gpu_id in gpu_ids if gpu_id not in available_ids})
-    if invalid_ids:
-        available_str = ", ".join(str(i) for i in sorted(available_ids))
-        invalid_str = ", ".join(str(i) for i in invalid_ids)
-        raise ValueError(
-            f"Invalid accelerator id(s): {invalid_str}. Available id(s): {available_str}."
-        )
-
-    if gpu_info.get("accelerator") == "mps" and len(gpu_ids) > 1:
-        raise ValueError("MPS exposes a single device. Select only device 0.")
+    validate_device_ids(gpu_ids)

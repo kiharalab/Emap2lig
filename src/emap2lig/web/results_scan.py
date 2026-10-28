@@ -11,31 +11,15 @@ from pathlib import Path
 
 import numpy as np
 
+from ..layout import OutputLayout, blob_id_of
 from .state import BlobInfo, BlobResult, ConformerResult
-
-PREPROCESS_DIR = "preprocess"
-FIND_BLOBS_DIR = "find_blobs"
-BUILD_STRUCT_DIR = "build_struct"
-
-UNIFIED_MAP_NAME = "unified.mrc"
-
-
-def unified_map_path(output_dir: Path) -> Path:
-    return output_dir / PREPROCESS_DIR / UNIFIED_MAP_NAME
 
 
 def resolve_blobs_dir(output_dir: Path) -> Path:
-    candidate = output_dir / FIND_BLOBS_DIR
+    candidate = OutputLayout(output_dir).find_blobs
     if candidate.is_dir():
         return candidate
     raise FileNotFoundError(f"Could not find blobs directory: {candidate}")
-
-
-def resolve_results_dir(output_dir: Path) -> Path:
-    candidate = output_dir / BUILD_STRUCT_DIR
-    if candidate.is_dir():
-        return candidate
-    raise FileNotFoundError(f"Could not find modeling output directory: {candidate}")
 
 
 def scan_blobs(blobs_dir: Path) -> list[BlobInfo]:
@@ -48,7 +32,7 @@ def scan_blobs(blobs_dir: Path) -> list[BlobInfo]:
     infos: list[BlobInfo] = []
     for npz_path in sorted(blobs_dir.glob("blob_*.npz")):
         try:
-            blob_id = int(npz_path.stem.split("_")[1])
+            blob_id = blob_id_of(npz_path)
         except (IndexError, ValueError):
             continue
 
@@ -87,7 +71,7 @@ def scan_results(results_dir: Path) -> list[BlobResult]:
             continue
 
         try:
-            blob_id = int(blob_dir.name.split("_")[1])
+            blob_id = blob_id_of(blob_dir)
         except (IndexError, ValueError):
             continue
 

@@ -6,13 +6,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from ..results_scan import (
-    BUILD_STRUCT_DIR,
-    FIND_BLOBS_DIR,
-    scan_blobs,
-    scan_results,
-    unified_map_path,
-)
+from ...layout import OutputLayout
+from ..results_scan import scan_blobs, scan_results
 from ..schemas import (
     BlobInfoResponse,
     BlobListResponse,
@@ -114,13 +109,14 @@ async def create_tutorial_jobs():
     if not _TUTORIAL_DIR.exists():
         raise HTTPException(404, f"Tutorial output not found at {_TUTORIAL_DIR}")
 
-    blobs_dir = _TUTORIAL_DIR / FIND_BLOBS_DIR
+    layout = OutputLayout(_TUTORIAL_DIR)
+    blobs_dir = layout.find_blobs
     blobs = scan_blobs(blobs_dir) if blobs_dir.is_dir() else []
 
-    results_dir = _TUTORIAL_DIR / BUILD_STRUCT_DIR
+    results_dir = layout.build_struct
     results = scan_results(results_dir) if results_dir.is_dir() else []
 
-    unified = unified_map_path(_TUTORIAL_DIR)
+    unified = layout.unified_map
     unified_rel = str(unified.relative_to(_TUTORIAL_DIR)) if unified.exists() else None
 
     now = datetime.now(UTC)

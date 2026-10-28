@@ -16,18 +16,16 @@ from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers
 from rdkit.Chem.rdchem import Conformer, Mol
 
-from ..storage import get_ccd_dir, get_model_dir
+from ..utils.storage import get_ccd_dir, get_model_dir
+from ..utils.weights import WEIGHTS_REPO_ID
 
 logger = logging.getLogger(__name__)
 
-_HF_REPO_ID = "KiharaLab/Emap2lig"
 _DEFAULT_CCD_DATE = "250523"
 # Resolved once at import, so EMAP2LIG_HOME applies but set_home() does not.
 _CCD_DIR = get_ccd_dir()
 _LEGACY_CCD_DIR = get_model_dir() / "ccd"
 _RCSB_CIF_URL = "https://files.rcsb.org/ligands/download/{code}.cif"
-
-Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)
 
 
 class CCDFetchError(RuntimeError):
@@ -64,7 +62,7 @@ def _download_bulk_dict(date: str) -> Path:
 
     downloaded_path = Path(
         hf_hub_download(
-            repo_id=_HF_REPO_ID,
+            repo_id=WEIGHTS_REPO_ID,
             filename=f"ccd/ccd_dict_{date}.pkl",
         )
     )

@@ -40,9 +40,9 @@ web = [
 ]
 
 [project.scripts]
-emap2lig = "emap2lig.main:app"
-fragment-detect = "emap2lig.frag:app"
-emap2lig-gui = "emap2lig.web.cli:cli"
+emap2lig = "emap2lig.cli.main:app"
+fragment-detect = "emap2lig.cli.frag:app"
+emap2lig-gui = "emap2lig.cli.gui:cli"
 
 [tool.uv.build-backend]
 # Frontend source lives in shuuul/Emap2lig-web; only frontend/dist/ is in this repo.

@@ -1,12 +1,13 @@
 import logging
 
+import numpy as np
 import torch
 from torch import nn
 from safetensors.torch import load_file
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 
-from ...storage import fetch_weights
+from ...utils.weights import fetch_weights
 from .munet import MUNetBackbone
 from .threshold import threshold_li
 
@@ -159,74 +160,41 @@ class RegHead(nn.Module):
         return x
 
 
-class MUNetRegSeg(nn.Module):
-    def __init__(
+class SlidingWindowSegmenter(nn.Module):
+    """Voxel segmenter applied to whole maps with overlapping cubic windows.
+
+    Subclasses set ``labels`` (one per output channel) and ``num_labels``.
+    """
+
+    labels: list[str]
+    num_labels: int
+
+    def segment(
         self,
-        in_channels: int = 1,
-        mid_channels: int = 32,
-        reg_channels: int = 6,
-        seg_channels: int = 6,
-        spatial_size: int = 64,
-        n_res_blocks: int = 1,
-        attention_levels: list[int] | None = None,
-        channel_multipliers: list[int] | None = None,
-        n_heads: int = 4,
-        tf_layers: int = 1,
-        kernel_size: int = 5,
-        num_groups: int = 32,
-        load_pretrained: bool = False,
-        repo_id: str = "KiharaLab/Emap2lig",
-        filename: str = "emap2lig-find-v0.0.1.safetensors",
-    ) -> None:
-        super().__init__()
+        grid_data: np.ndarray,
+        roi_size: int,
+        batch_size: int,
+        device: torch.device,
+    ) -> tuple[torch.Tensor, torch.Tensor, dict[str, float]]:
+        """Segment a ``(D, H, W)`` map.
 
-        # Set defaults for mutable arguments
-        if attention_levels is None:
-            attention_levels = [2]
-        if channel_multipliers is None:
-            channel_multipliers = [1, 2, 4]
-
-        self.backbone = MUNetBackbone(
-            in_channels,
-            mid_channels,
-            n_res_blocks,
-            attention_levels,
-            channel_multipliers,
-            n_heads,
-            tf_layers,
-            kernel_size,
-            num_groups,
+        Returns the probability map and its binarization, both ``[C, D, H, W]``
+        on the CPU, plus the threshold used for each label.
+        """
+        input_map = torch.from_numpy(grid_data).float()[None, None]
+        logger.info(f"Running {type(self).__name__} on device: {device}")
+        probabilities = self.sliding_window_inference(
+            input_map=input_map,
+            roi_size=roi_size,
+            batch_size=batch_size,
+            device=device,
+            output_device=torch.device("cpu"),
         )
+        binary, thresholds = self.binarize(probabilities)
+        return probabilities[0], binary[0], thresholds
 
-        self.reg_head = RegHead(mid_channels, reg_channels)
-        self.seg_head = SegHead(mid_channels, seg_channels)
-
-        self.reg_act = torch.relu
-        self.seg_act = torch.sigmoid
-
-        self.num_labels = seg_channels
-        self.spatial_size = spatial_size
-        self.labels = ["backbone", "sidechain", "sugar", "phosphate", "base", "ligand"]
-
-        if load_pretrained:
-            model_path = fetch_weights(repo_id, filename)
-            self.load_state_dict(load_file(model_path))
-
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        mid_emb = self.backbone(x)
-        reg_emb = self.reg_head(mid_emb)
-        seg_emb = self.seg_head(mid_emb)
-
-        # if training, return both reg and seg
-        if self.training:
-            return self.reg_act(reg_emb), self.seg_act(seg_emb)
-        # if testing, return only seg
-        else:
-            return self.seg_act(seg_emb)
-
-    def _binarize_output(
-        self, output: torch.Tensor
-    ) -> tuple[torch.Tensor, dict[str, float]]:
+    def binarize(self, output: torch.Tensor) -> tuple[torch.Tensor, dict[str, float]]:
+        """Per-channel Li thresholding → (boolean map, threshold per label)."""
         B, C, _, _, _ = output.shape
         reshaped_output = output.reshape(B * C, -1)
         thresholds = torch.stack(
@@ -341,7 +309,73 @@ class MUNetRegSeg(nn.Module):
         return output_map
 
 
-class FragmentRegSeg(nn.Module):
+class MUNetRegSeg(SlidingWindowSegmenter):
+    def __init__(
+        self,
+        in_channels: int = 1,
+        mid_channels: int = 32,
+        reg_channels: int = 6,
+        seg_channels: int = 6,
+        spatial_size: int = 64,
+        n_res_blocks: int = 1,
+        attention_levels: list[int] | None = None,
+        channel_multipliers: list[int] | None = None,
+        n_heads: int = 4,
+        tf_layers: int = 1,
+        kernel_size: int = 5,
+        num_groups: int = 32,
+        load_pretrained: bool = False,
+        repo_id: str = "KiharaLab/Emap2lig",
+        filename: str = "emap2lig-find-v0.0.1.safetensors",
+    ) -> None:
+        super().__init__()
+
+        # Set defaults for mutable arguments
+        if attention_levels is None:
+            attention_levels = [2]
+        if channel_multipliers is None:
+            channel_multipliers = [1, 2, 4]
+
+        self.backbone = MUNetBackbone(
+            in_channels,
+            mid_channels,
+            n_res_blocks,
+            attention_levels,
+            channel_multipliers,
+            n_heads,
+            tf_layers,
+            kernel_size,
+            num_groups,
+        )
+
+        self.reg_head = RegHead(mid_channels, reg_channels)
+        self.seg_head = SegHead(mid_channels, seg_channels)
+
+        self.reg_act = torch.relu
+        self.seg_act = torch.sigmoid
+
+        self.num_labels = seg_channels
+        self.spatial_size = spatial_size
+        self.labels = ["backbone", "sidechain", "sugar", "phosphate", "base", "ligand"]
+
+        if load_pretrained:
+            model_path = fetch_weights(filename, repo_id)
+            self.load_state_dict(load_file(model_path))
+
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        mid_emb = self.backbone(x)
+        reg_emb = self.reg_head(mid_emb)
+        seg_emb = self.seg_head(mid_emb)
+
+        # if training, return both reg and seg
+        if self.training:
+            return self.reg_act(reg_emb), self.seg_act(seg_emb)
+        # if testing, return only seg
+        else:
+            return self.seg_act(seg_emb)
+
+
+class FragmentRegSeg(SlidingWindowSegmenter):
     def __init__(
         self,
         in_channels: int,
@@ -398,7 +432,7 @@ class FragmentRegSeg(nn.Module):
         self.spatial_size = spatial_size
 
         if load_pretrained:
-            model_path = fetch_weights(repo_id, filename)
+            model_path = fetch_weights(filename, repo_id)
             self.load_state_dict(load_file(model_path))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -412,119 +446,3 @@ class FragmentRegSeg(nn.Module):
             return self.reg_act(reg_emb), self.seg_act(seg_emb)
         else:
             return self.seg_act(seg_emb)
-
-    def _binarize_output(
-        self, output: torch.Tensor
-    ) -> tuple[torch.Tensor, dict[str, float]]:
-        B, C, _, _, _ = output.shape
-        reshaped_output = output.reshape(B * C, -1)
-        thresholds = torch.stack(
-            [threshold_li(slice, initial_guess=0.1) for slice in reshaped_output]
-        )
-        thresholds = thresholds.reshape(B, C, 1, 1, 1)
-        binary_tensor = output > thresholds
-
-        channel_thresholds: dict[str, float] = {}
-        for c in range(C):
-            label = self.labels[c] if c < len(self.labels) else f"channel_{c}"
-            channel_thresholds[label] = thresholds[0, c, 0, 0, 0].item()
-
-        return binary_tensor, channel_thresholds
-
-    @torch.no_grad()
-    def sliding_window_inference(
-        self,
-        input_map: torch.Tensor,
-        roi_size: int = 64,
-        batch_size: int = 4,
-        device=torch.device("cuda"),
-        output_device=torch.device("cpu"),
-        overlap_ratio: float = 0.5,
-        num_workers: int = 4,
-    ) -> torch.Tensor:
-        """
-        Perform sliding window inference on a large volume using this model.
-
-        Args:
-            input_map (torch.Tensor): Input tensor of shape [1, 1, D, H, W].
-            roi_size (int): Size of the region of interest (cube).
-            batch_size (int): Batch size for inference.
-            device (torch.device): Device to perform computation on.
-            output_device (torch.device): Device to store output on.
-            overlap_ratio (float): Overlap ratio between adjacent windows.
-            num_workers (int): Number of workers for data loading.
-
-        Returns:
-            torch.Tensor: Segmentation map of shape [1, C, D, H, W].
-        """
-        self.eval()
-        self.to(device)
-
-        output_num_channels = self.num_labels
-
-        H, W, D = input_map.shape[2:]
-        logger.info(f"Input tensor shape: H:{H}/W:{W}/D:{D}")
-        if H < roi_size or W < roi_size or D < roi_size:
-            logger.warning(
-                f"Input tensor spatial dimensions {H}/{W}/{D} are smaller than the ROI size {roi_size}."
-            )
-
-            pad_H = max(roi_size - H, 0)
-            pad_W = max(roi_size - W, 0)
-            pad_D = max(roi_size - D, 0)
-            input_map = torch.nn.functional.pad(
-                input_map, (0, pad_D, 0, pad_W, 0, pad_H), mode="constant", value=0
-            )
-            H, W, D = input_map.shape[2:]
-            logger.info(f"After padding, input tensor shape: H:{H}/W:{W}/D:{D}")
-
-        output_map = torch.zeros(
-            (1, output_num_channels, H, W, D), device=output_device, dtype=torch.float
-        )
-        count_map = torch.zeros(
-            (1, output_num_channels, H, W, D), device=output_device, dtype=torch.float
-        )
-        stride = int(roi_size * (1 - overlap_ratio))
-
-        coords = []
-        num_voxels = 0
-        for position in scan_voxel_positions(H, W, D, roi_size, stride):
-            num_voxels += 1
-            z_start, y_start, x_start, z_end, y_end, x_end = position
-            sub_volume = input_map[0, 0, z_start:z_end, y_start:y_end, x_start:x_end]
-            if not torch.all(sub_volume == 0):
-                coords.append(position)
-
-        logger.info(
-            f"Number of non-empty ROIs / All possible ROIs: {len(coords)} / {num_voxels}"
-        )
-
-        dataset = VolumeInferenceDataset(input_map, coords)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            pin_memory=device.type == "cuda",
-            collate_fn=custom_collate,
-        )
-
-        for batch, batch_coords in tqdm(dataloader, desc="Processing inference"):
-            batch = batch.to(device)
-            model_output = self(batch)
-            if isinstance(model_output, tuple):
-                model_output = model_output[0]
-
-            model_output = model_output.to(output_device)
-
-            for idx, (z_start, y_start, x_start, z_end, y_end, x_end) in enumerate(
-                batch_coords
-            ):
-                output_map[:, :, z_start:z_end, y_start:y_end, x_start:x_end] += (
-                    model_output[idx]
-                )
-                count_map[:, :, z_start:z_end, y_start:y_end, x_start:x_end] += 1
-
-        output_map[count_map > 0] /= count_map[count_map > 0]
-
-        return output_map

@@ -11,13 +11,8 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from ..results_scan import (
-    BUILD_STRUCT_DIR,
-    FIND_BLOBS_DIR,
-    scan_blobs,
-    scan_results,
-    unified_map_path,
-)
+from ...layout import OutputLayout
+from ..results_scan import scan_blobs, scan_results
 from ..services import JOBS_ROOT
 from ..state import get_job
 
@@ -229,7 +224,8 @@ async def load_results_from_dir(
     if not target.is_dir():
         raise HTTPException(400, f"Not a directory: {target}")
 
-    blobs_dir = target / FIND_BLOBS_DIR
+    layout = OutputLayout(target)
+    blobs_dir = layout.find_blobs
     blob_infos = scan_blobs(blobs_dir) if blobs_dir.is_dir() else []
     blobs = [
         {
@@ -242,7 +238,7 @@ async def load_results_from_dir(
     ]
 
     # Scan outputs
-    outputs_dir = target / BUILD_STRUCT_DIR
+    outputs_dir = layout.build_struct
     blob_results = scan_results(outputs_dir) if outputs_dir.is_dir() else []
     results = [
         {
@@ -263,7 +259,7 @@ async def load_results_from_dir(
     ]
 
     # Unified map
-    unified_map = unified_map_path(target)
+    unified_map = layout.unified_map
     unified_map_url = (
         f"/api/serve-path?path={unified_map}" if unified_map.exists() else None
     )

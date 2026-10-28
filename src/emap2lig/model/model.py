@@ -8,7 +8,7 @@ from safetensors.torch import load_file
 import torch
 from torch import Tensor
 
-from ..storage import fetch_weights
+from ..utils.weights import fetch_weights
 from .modules.conf_embedder import ConformerEmbedder
 from .modules.diffusion import AtomDiffusion, DiffusionModuleArgs
 from .modules.instance_seg import InstanceSegModule
@@ -314,7 +314,7 @@ class Emap2lig(LightningModule):
 
         # Load pretrained weights from HuggingFace Hub (or local cache)
         if load_pretrained and filename:
-            model_path = fetch_weights(repo_id, filename)
+            model_path = fetch_weights(filename, repo_id)
             self.load_state_dict(load_file(model_path), strict=False)
 
         self.compile_model()
