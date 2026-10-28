@@ -19,8 +19,8 @@ macOS inference uses PyTorch's MPS backend. The pipeline relies on 3D
 convolution and trilinear 3D upsampling on MPS, so Emap2lig requires
 `torch>=2.8.0` and macOS 13.2 or newer.
 
-CUDA-only optimized kernels, such as cuequivariance triangle kernels and Flash
-Attention paths, are automatically bypassed on MPS in favor of the standard
+CUDA-only optimizations (Flash Attention paths and `torch.compile` of the
+structure model) are automatically bypassed on MPS in favor of the standard
 PyTorch implementations.
 
 ## No supported accelerator?

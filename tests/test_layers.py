@@ -10,7 +10,7 @@ from emap2lig.model.layers.triangular_attention import (
 )
 
 
-def _reference_non_cueq_attention(
+def _reference_attention(
     layer, x: torch.Tensor, mask: torch.Tensor
 ) -> torch.Tensor:
     if not layer.starting:
@@ -44,9 +44,9 @@ def _reference_non_cueq_attention(
     "layer_type",
     [TriangleAttentionStartingNode, TriangleAttentionEndingNode],
 )
-def test_non_cueq_triangle_attention_matches_pair_bias_reference(layer_type) -> None:
+def test_triangle_attention_matches_pair_bias_reference(layer_type) -> None:
     torch.manual_seed(1234)
-    layer = layer_type(c_in=4, c_hidden=3, no_heads=2, inf=1e5, use_cuequiv=False)
+    layer = layer_type(c_in=4, c_hidden=3, no_heads=2, inf=1e5)
 
     # Constructor zeroes gate/output projections. Make the residual path observable.
     with torch.no_grad():
@@ -65,6 +65,6 @@ def test_non_cueq_triangle_attention_matches_pair_bias_reference(layer_type) -> 
 
     with torch.inference_mode():
         actual = layer(x, pair_mask)
-        expected = _reference_non_cueq_attention(layer, x, pair_mask)
+        expected = _reference_attention(layer, x, pair_mask)
 
     torch.testing.assert_close(actual, expected, atol=1e-6, rtol=1e-6)

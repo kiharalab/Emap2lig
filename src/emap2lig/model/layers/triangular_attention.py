@@ -20,22 +20,6 @@ import torch.nn.init as init
 from einops import rearrange
 from torch import Tensor
 
-try:
-    from cuequivariance_torch.primitives.triangle import (
-        triangle_attention,  # type: ignore
-    )
-
-    CUEQUIVARIANCE_AVAILABLE = True
-
-    # Torch.compile-compatible wrapper for cuequivariance triangle attention
-    @torch.compiler.disable
-    def kernel_triangular_attn(q, k, v, tri_bias, mask, scale):
-        return triangle_attention(q, k, v, tri_bias, mask=mask, scale=scale)
-
-except ImportError:
-    CUEQUIVARIANCE_AVAILABLE = False
-    kernel_triangular_attn = None  # type: ignore
-
 from .primitives import LayerNorm, LinearNoBias, disable_autocast_for
 
 
@@ -51,9 +35,6 @@ class TriangleAttention(nn.Module):
     - Starting node: attention flows from i->k with j fixed
     - Ending node: attention flows from j->k with i fixed
 
-    Supports multiple implementations:
-    - Normal: Standard PyTorch attention implementation
-    - CuEquivariance: Cuequivariance-optimized triangle attention (if available)
     """
 
     def __init__(
@@ -63,7 +44,6 @@ class TriangleAttention(nn.Module):
         no_heads: int,
         starting: bool = True,
         inf: float = 1e9,
-        use_cuequiv: bool = False,
     ) -> None:
         """
         Initialize triangle attention module.
@@ -75,7 +55,6 @@ class TriangleAttention(nn.Module):
             starting: If True, implements starting node attention (Algorithm 13),
                      otherwise ending node attention (Algorithm 14)
             inf: Large value for masking invalid positions
-            use_cuequiv: Whether to use cuequivariance triangle attention when available
         """
         super().__init__()
 
@@ -84,7 +63,6 @@ class TriangleAttention(nn.Module):
         self.no_heads = no_heads
         self.starting = starting
         self.inf = inf
-        self.use_cuequiv = use_cuequiv and CUEQUIVARIANCE_AVAILABLE
 
         # Layer normalization for input
         self.layer_norm = LayerNorm(c_in)
@@ -118,7 +96,6 @@ class TriangleAttention(nn.Module):
         self,
         x: Tensor,
         mask: Tensor | None = None,
-        use_cuequiv: bool | None = None,
     ) -> Tensor:
         """
         Forward pass for triangle attention.
@@ -128,27 +105,11 @@ class TriangleAttention(nn.Module):
                 For starting=True: attention along j-axis with i fixed
                 For starting=False: attention along i-axis with j fixed
             mask: Mask tensor [*, I, J] indicating valid positions (True=valid, False=masked)
-            use_cuequiv: Override to use cuequivariance attention for this forward pass.
-                        If None, uses the default from initialization
 
         Returns:
             Updated pair representation [*, I, J, c_in]
         """
-        # Determine which implementation to use
-        use_cuequiv_attention = (
-            use_cuequiv
-            if use_cuequiv is not None and mask is not None
-            else self.use_cuequiv
-        )
-
-        if (
-            use_cuequiv_attention
-            and CUEQUIVARIANCE_AVAILABLE
-            and x.device.type == "cuda"
-        ):
-            return self._forward_cuequiv(x, mask)
-        else:
-            return self._forward_normal(x, mask)
+        return self._forward_normal(x, mask)
 
     def _forward_normal(
         self,
@@ -180,7 +141,7 @@ class TriangleAttention(nn.Module):
         x = self.layer_norm(x)
 
         # Compute triangle bias from pair features.
-        # Match Boltz/cueq layout: [*, 1, no_heads, I, J].
+        # Boltz layout: [*, 1, no_heads, I, J].
         tri_bias = self.linear_bias(x)
         tri_bias = rearrange(tri_bias, "... i j h -> ... 1 h i j")
 
@@ -196,7 +157,7 @@ class TriangleAttention(nn.Module):
         k = rearrange(k, "... i j (h d) -> ... i h j d", h=self.no_heads)
         v = rearrange(v, "... i j (h d) -> ... i h j d", h=self.no_heads)
 
-        # Boltz/cueq kernels mask attention keys, not Q/K/V projections.
+        # Mask attention keys, not the Q/K/V projections (Boltz semantics).
 
         with disable_autocast_for(x.device):
             # Compute attention scores in fp32 for numerical stability.
@@ -238,92 +199,6 @@ class TriangleAttention(nn.Module):
 
         return o
 
-    def _forward_cuequiv(
-        self,
-        x: Tensor,
-        mask: Tensor,
-    ) -> Tensor:
-        """
-        CuEquivariance-optimized triangle attention implementation.
-
-        Args:
-            x: Input pair representation [*, I, J, c_in]
-            mask: Mask tensor [*, I, J] indicating valid positions
-
-        Returns:
-            Output pair representation [*, I, J, c_in]
-        """
-        if not CUEQUIVARIANCE_AVAILABLE:
-            raise RuntimeError(
-                "CuEquivariance not available. Install cuequivariance_torch to use optimized triangle attention."
-            )
-
-        # Get input dimensions
-        *_batch_dims, n_i, n_j, _ = x.shape
-
-        # For ending node attention, swap spatial dimensions using einops
-        if not self.starting:
-            # Swap I and J dimensions: [*, I, J, c_in] -> [*, J, I, c_in]
-            x = rearrange(x, "... i j c -> ... j i c")
-            mask = rearrange(mask, "... i j -> ... j i")
-            n_i, n_j = n_j, n_i
-
-        # Apply layer normalization
-        x = self.layer_norm(x)
-
-        # Compute triangle bias from pair features.
-        # Match cueq layout: [*, 1, no_heads, I, J].
-        tri_bias = self.linear_bias(x)
-        tri_bias = rearrange(tri_bias, "... i j h -> ... 1 h i j")
-
-        # rearrange mask from [*, I, J] to [*, I, 1, 1, J]
-        tri_mask = mask.unsqueeze(-2).unsqueeze(-2).bool()
-
-        # Compute Q, K, V projections
-        # [*, I, J, c_in] -> [*, I, J, no_heads * c_hidden]
-        q = self.linear_q(x)
-        k = self.linear_k(x)
-        v = self.linear_v(x)
-
-        # Reshape for multi-head attention using einops
-        # [*, I, J, no_heads * c_hidden] -> [*, I, no_heads, J, c_hidden]
-        q = rearrange(q, "... i j (h d) -> ... i h j d", h=self.no_heads)
-        k = rearrange(k, "... i j (h d) -> ... i h j d", h=self.no_heads)
-        v = rearrange(v, "... i j (h d) -> ... i h j d", h=self.no_heads)
-
-        # Boltz/cueq kernels mask attention keys, not Q/K/V projections.
-
-        # Apply cuequivariance triangle attention using torch.compile-compatible wrapper
-        # Use the disabled kernel wrapper to support torch.compile
-        scale = 1.0 / (self.c_hidden**0.5)
-        o = kernel_triangular_attn(
-            q=q,
-            k=k,
-            v=v,
-            tri_bias=tri_bias,
-            mask=tri_mask,
-            scale=scale,
-        )
-
-        # cueq returns [*, I, no_heads, J, c_hidden] for this q/k/v layout.
-        o = rearrange(o, "... i h j d -> ... i j (h d)")
-
-        # Apply gating
-        g = self.sigmoid(self.linear_g(x))
-        o = o * g
-
-        # Final projection
-        o = self.linear_o(o)
-
-        # Keep Boltz semantics: masked pair outputs are not zeroed here.
-
-        # For ending node, swap back to original orientation using einops
-        if not self.starting:
-            # [*, J, I, c_in] -> [*, I, J, c_in]
-            o = rearrange(o, "... j i c -> ... i j c")
-
-        return o
-
 
 class TriangleAttentionStartingNode(TriangleAttention):
     """
@@ -339,7 +214,6 @@ class TriangleAttentionStartingNode(TriangleAttention):
         c_hidden: int,
         no_heads: int,
         inf: float = 1e9,
-        use_cuequiv: bool = False,
     ):
         """
         Initialize starting node triangle attention.
@@ -349,7 +223,6 @@ class TriangleAttentionStartingNode(TriangleAttention):
             c_hidden: Hidden dimension per head
             no_heads: Number of attention heads
             inf: Large value for masking
-            use_cuequiv: Whether to use cuequivariance triangle attention by default
         """
         super().__init__(
             c_in,
@@ -357,7 +230,6 @@ class TriangleAttentionStartingNode(TriangleAttention):
             no_heads,
             starting=True,
             inf=inf,
-            use_cuequiv=use_cuequiv,
         )
 
 
@@ -375,7 +247,6 @@ class TriangleAttentionEndingNode(TriangleAttention):
         c_hidden: int,
         no_heads: int,
         inf: float = 1e9,
-        use_cuequiv: bool = False,
     ):
         """
         Initialize ending node triangle attention.
@@ -385,7 +256,6 @@ class TriangleAttentionEndingNode(TriangleAttention):
             c_hidden: Hidden dimension per head
             no_heads: Number of attention heads
             inf: Large value for masking
-            use_cuequiv: Whether to use cuequivariance triangle attention by default
         """
         super().__init__(
             c_in,
@@ -393,5 +263,4 @@ class TriangleAttentionEndingNode(TriangleAttention):
             no_heads,
             starting=False,
             inf=inf,
-            use_cuequiv=use_cuequiv,
         )

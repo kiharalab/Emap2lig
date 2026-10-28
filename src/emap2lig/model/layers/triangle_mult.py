@@ -1,4 +1,3 @@
-import logging
 import math
 
 import torch
@@ -6,48 +5,6 @@ import torch.nn.init as init
 from torch import Tensor, nn
 
 from .primitives import LayerNorm, LinearNoBias
-
-logger = logging.getLogger(__name__)
-
-try:
-    from cuequivariance_torch.primitives.triangle import (
-        triangle_multiplicative_update,  # type: ignore
-    )
-
-    HAS_CUEQUIVARIANCE = True
-except ImportError:
-    HAS_CUEQUIVARIANCE = False
-
-
-@torch.compiler.disable
-def kernel_triangular_mult(
-    x,
-    direction,
-    mask,
-    norm_in_weight,
-    norm_in_bias,
-    p_in_weight,
-    g_in_weight,
-    norm_out_weight,
-    norm_out_bias,
-    p_out_weight,
-    g_out_weight,
-    eps,
-):
-    return triangle_multiplicative_update(
-        x,
-        direction=direction,
-        mask=mask,
-        norm_in_weight=norm_in_weight,
-        norm_in_bias=norm_in_bias,
-        p_in_weight=p_in_weight,
-        g_in_weight=g_in_weight,
-        norm_out_weight=norm_out_weight,
-        norm_out_bias=norm_out_bias,
-        p_out_weight=p_out_weight,
-        g_out_weight=g_out_weight,
-        eps=eps,
-    )
 
 
 class TriangleMultiplicationOutgoing(nn.Module):
@@ -58,20 +15,16 @@ class TriangleMultiplicationOutgoing(nn.Module):
     direction updates z_ij using the pattern: z_ij <- sum_k(a_ik * b_jk).
     """
 
-    def __init__(self, dim: int = 128, use_cuequiv: bool = False) -> None:
+    def __init__(self, dim: int = 128) -> None:
         """Initialize the TriangularUpdate module.
 
         Parameters
         ----------
         dim: int
             The dimension of the input, default 128
-        use_cuequiv: bool
-            Whether to use cuequivariance kernels, default False
 
         """
         super().__init__()
-        self.use_cuequiv = use_cuequiv
-        self._warned_cuequiv_unavailable = False
 
         self.norm_in = LayerNorm(dim, eps=1e-5)
         self.p_in = LinearNoBias(dim, 2 * dim)
@@ -117,31 +70,6 @@ class TriangleMultiplicationOutgoing(nn.Module):
             The output data of shape (B, N, N, D)
 
         """
-        # Use optimized cuequivariance kernel only for CUDA tensors. MPS falls
-        # through silently to the normal PyTorch implementation.
-        if self.use_cuequiv and x.device.type == "cuda" and HAS_CUEQUIVARIANCE:
-            return kernel_triangular_mult(
-                x,
-                direction="outgoing",
-                mask=mask,
-                norm_in_weight=self.norm_in.weight,
-                norm_in_bias=self.norm_in.bias,
-                p_in_weight=self.p_in.weight,
-                g_in_weight=self.g_in.weight,
-                norm_out_weight=self.norm_out.weight,
-                norm_out_bias=self.norm_out.bias,
-                p_out_weight=self.p_out.weight,
-                g_out_weight=self.g_out.weight,
-                eps=1e-5,
-            )
-        if self.use_cuequiv and x.device.type == "cuda" and not HAS_CUEQUIVARIANCE:
-            if not self._warned_cuequiv_unavailable:
-                logger.warning(
-                    "Cuequivariance not installed, using fallback implementation"
-                )
-                self._warned_cuequiv_unavailable = True
-
-        # Fallback PyTorch implementation
         # Input gating and normalization
         x = self.norm_in(x)  # [B, N, N, D]
         x_in = x  # Store for skip connection
@@ -175,20 +103,16 @@ class TriangleMultiplicationIncoming(nn.Module):
     direction updates z_ij using the pattern: z_ij <- sum_k(a_ki * b_kj).
     """
 
-    def __init__(self, dim: int = 128, use_cuequiv: bool = False) -> None:
+    def __init__(self, dim: int = 128) -> None:
         """Initialize the TriangularUpdate module.
 
         Parameters
         ----------
         dim: int
             The dimension of the input, default 128
-        use_cuequiv: bool
-            Whether to use cuequivariance kernels, default False
 
         """
         super().__init__()
-        self.use_cuequiv = use_cuequiv
-        self._warned_cuequiv_unavailable = False
 
         self.norm_in = LayerNorm(dim, eps=1e-5)
         self.p_in = LinearNoBias(dim, 2 * dim)
@@ -234,31 +158,6 @@ class TriangleMultiplicationIncoming(nn.Module):
             The output data of shape (B, N, N, D)
 
         """
-        # Use optimized cuequivariance kernel only for CUDA tensors. MPS falls
-        # through silently to the normal PyTorch implementation.
-        if self.use_cuequiv and x.device.type == "cuda" and HAS_CUEQUIVARIANCE:
-            return kernel_triangular_mult(
-                x,
-                direction="incoming",
-                mask=mask,
-                norm_in_weight=self.norm_in.weight,
-                norm_in_bias=self.norm_in.bias,
-                p_in_weight=self.p_in.weight,
-                g_in_weight=self.g_in.weight,
-                norm_out_weight=self.norm_out.weight,
-                norm_out_bias=self.norm_out.bias,
-                p_out_weight=self.p_out.weight,
-                g_out_weight=self.g_out.weight,
-                eps=1e-5,
-            )
-        if self.use_cuequiv and x.device.type == "cuda" and not HAS_CUEQUIVARIANCE:
-            if not self._warned_cuequiv_unavailable:
-                logger.warning(
-                    "Cuequivariance not installed, using fallback implementation"
-                )
-                self._warned_cuequiv_unavailable = True
-
-        # Fallback PyTorch implementation
         # Input gating and normalization
         x = self.norm_in(x)  # [B, N, N, D]
         x_in = x  # Store for skip connection

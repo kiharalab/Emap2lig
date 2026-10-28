@@ -9,8 +9,6 @@ authors = [
 license = { file = "LICENSE" }
 requires-python = ">=3.12,<3.15"
 dependencies = [
-    "cuequivariance-ops-torch-cu12>=0.5.2 ; sys_platform == 'linux'",
-    "cuequivariance-torch>=0.5.2 ; sys_platform == 'linux'",
     "einops>=0.8.1",
     "gemmi>=0.7.1",
     "huggingface-hub>=0.31.1",

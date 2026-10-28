@@ -86,8 +86,6 @@ def build_structure_model(num_sampling_steps: int = 100) -> Emap2lig:
             num_heads=8,
             head_dim=16,
             transition_expansion_factor=4,
-            tri_attn_use_kernel=True,
-            tri_mul_use_kernel=True,
             activation_checkpointing=False,
         ),
         instance_seg_args=InstanceSegArgs(num_selected_points=8192),

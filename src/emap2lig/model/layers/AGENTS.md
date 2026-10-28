@@ -28,7 +28,7 @@ layers/
 ## KEY COMPONENTS
 - **attention.py**: Multi-head attention using pairwise structural bias projected from $c_z$. Uses `torch.compile` for memory efficiency.
 - **triangular_attention.py**: Implementation of AlphaFold2 axial attention (Algorithms 13 & 14). Updates pair representations by attending along one axis with cross-axis bias.
-- **triangle_mult.py**: Triangular multiplicative updates for pair representations (Incoming/Outgoing directions). Features optimized `cuequivariance` CUDA kernels.
+- **triangle_mult.py**: Triangular multiplicative updates for pair representations (Incoming/Outgoing directions).
 - **selected_attention.py**: Cross-attention between atom queries and pre-selected point features from InstanceSegModule. Uses 3D positional encoding and FlashAttention for efficient point-to-atom conditioning.
 - **instance.py**: Core instance segmentation blocks. Integrates 3D convolutions with volume-to-atom cross-attention and relative positional encodings.
 - **outer_product_mean.py**: Computes pairwise interactions from sequence representations. Uses gated outer products mean-pooled across the sequence dimension.
@@ -41,7 +41,7 @@ layers/
 
 ## PATTERNS
 - **Geometric Priors**: Structural constraints are enforced via pairwise biases, triangular consistency logic, and 3D sinusoidal spatial signal injection.
-- **Compute Optimization**: Peak performance achieved through `cuequivariance` kernels, FlashAttention, and JIT-compiled modules.
+- **Compute Optimization**: Peak performance achieved through FlashAttention and `torch.compile` of the conformer embedder, instance segmentation, auxiliary and diffusion modules on CUDA. The PairFormer runs once per batch, so compiling it costs more warmup than it saves.
 - **Mixed Precision Guardrails**: Custom normalization modules force FP32 accumulation during reduction to ensure numerical stability for BF16/FP16 training.
 - **High-Fidelity Gating**: Pervasive use of Gated Linear Units (SwiGLU, SiLU-gated MLP) for selective and context-aware feature propagation.
 - **Grid-to-Point Bridge**: Top-k point selection from 3D voxel grids based on instance probabilities, enabling efficient cross-attention between density features and atom representations.

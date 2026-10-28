@@ -33,8 +33,6 @@ class PairFormerBlock(nn.Module):
         head_dim: int = 32,
         transition_expansion_factor: int = 2,
         outer_product_mean_hidden_dim: int = 16,
-        tri_attn_use_kernel: bool = False,
-        tri_mul_use_kernel: bool = False,
     ) -> None:
         """Initialize PairFormerBlock.
 
@@ -52,16 +50,11 @@ class PairFormerBlock(nn.Module):
             Expansion factor for transition layers, by default 2
         outer_product_mean_hidden_dim : int, optional
             Hidden dimension for outer product mean, by default 16
-        tri_attn_use_kernel : bool, optional
-            Use kernel implementation for triangle attention, by default False
-        tri_mul_use_kernel : bool, optional
-            Use kernel implementation for triangle multiplication, by default False
         """
         super().__init__()
         self.atom_dim = atom_dim
         self.pair_dim = pair_dim
         self.outer_product_mean_hidden_dim = outer_product_mean_hidden_dim
-        self.tri_mul_use_kernel = tri_mul_use_kernel
 
         # Pair-to-atom attention with pairwise bias
         self.pair2atom = AttentionPairBias(
@@ -78,25 +71,19 @@ class PairFormerBlock(nn.Module):
         )
 
         # Triangle multiplication updates
-        self.tri_mul_out = TriangleMultiplicationOutgoing(
-            pair_dim, use_cuequiv=tri_mul_use_kernel
-        )
-        self.tri_mul_in = TriangleMultiplicationIncoming(
-            pair_dim, use_cuequiv=tri_mul_use_kernel
-        )
+        self.tri_mul_out = TriangleMultiplicationOutgoing(pair_dim)
+        self.tri_mul_in = TriangleMultiplicationIncoming(pair_dim)
 
         # Triangle attention layers
         self.tri_att_start = TriangleAttentionStartingNode(
             c_in=pair_dim,
             c_hidden=head_dim,
             no_heads=n_heads,
-            use_cuequiv=tri_attn_use_kernel,
         )
         self.tri_att_end = TriangleAttentionEndingNode(
             c_in=pair_dim,
             c_hidden=head_dim,
             no_heads=n_heads,
-            use_cuequiv=tri_attn_use_kernel,
         )
 
         # Transition layers
@@ -188,8 +175,6 @@ class PairFormer(nn.Module):
         num_heads: int = 16,
         head_dim: int = 32,
         transition_expansion_factor: int = 4,
-        tri_attn_use_kernel: bool = False,
-        tri_mul_use_kernel: bool = False,
         activation_checkpointing: bool = False,
     ) -> None:
         """Initialize PairFormer.
@@ -208,10 +193,6 @@ class PairFormer(nn.Module):
             Dimension per attention head, by default 32
         transition_expansion_factor : int, optional
             Expansion factor for transition layers, by default 4
-        tri_attn_use_kernel : bool, optional
-            Use kernel implementation for triangle attention, by default False
-        tri_mul_use_kernel : bool, optional
-            Use kernel implementation for triangle multiplication, by default False
         """
         super().__init__()
 
@@ -221,8 +202,6 @@ class PairFormer(nn.Module):
         self.num_heads = num_heads
         self.head_dim = head_dim
         self.transition_expansion_factor = transition_expansion_factor
-        self.tri_attn_use_kernel = tri_attn_use_kernel
-        self.tri_mul_use_kernel = tri_mul_use_kernel
         self.activation_checkpointing = activation_checkpointing
 
         self.blocks = nn.ModuleList()
@@ -234,8 +213,6 @@ class PairFormer(nn.Module):
                     n_heads=self.num_heads,
                     head_dim=self.head_dim,
                     transition_expansion_factor=self.transition_expansion_factor,
-                    tri_attn_use_kernel=self.tri_attn_use_kernel,
-                    tri_mul_use_kernel=self.tri_mul_use_kernel,
                 )
             )
 

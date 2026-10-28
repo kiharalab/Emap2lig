@@ -67,10 +67,6 @@ class PairformerArgs:
         Dimension per attention head, by default 32.
     transition_expansion_factor : int, optional
         Expansion factor for transition layers, by default 4.
-    tri_attn_use_kernel : bool, optional
-        Use kernel implementation for triangle attention, by default False.
-    tri_mul_use_kernel : bool, optional
-        Use kernel implementation for triangle multiplication, by default False.
     """
 
     atom_dim: int
@@ -79,8 +75,6 @@ class PairformerArgs:
     num_heads: int = 16
     head_dim: int = 32
     transition_expansion_factor: int = 4
-    tri_attn_use_kernel: bool = False
-    tri_mul_use_kernel: bool = False
     activation_checkpointing: bool = False
 
 
@@ -268,8 +262,6 @@ class Emap2lig(LightningModule):
             num_heads=pairformer_args.num_heads,
             head_dim=pairformer_args.head_dim,
             transition_expansion_factor=pairformer_args.transition_expansion_factor,
-            tri_attn_use_kernel=pairformer_args.tri_attn_use_kernel,
-            tri_mul_use_kernel=pairformer_args.tri_mul_use_kernel,
             activation_checkpointing=pairformer_args.activation_checkpointing,
         )
         self.is_pairformer_compiled = is_pairformer_compiled
