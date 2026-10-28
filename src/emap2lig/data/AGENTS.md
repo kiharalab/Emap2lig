@@ -32,4 +32,4 @@ Data handling for cryo-EM maps, ligand chemistry, and tokenization for structura
 - **Chemistry**: RDKit, Gemmi, pdbeccdutils
 - **Cryo-EM**: mrcfile, Gemmi (mmCIF parsing only)
 - **Formatters**: modelcif, ihm
-- **Performance**: NumPy, Jaxtyping
+- **Performance**: NumPy

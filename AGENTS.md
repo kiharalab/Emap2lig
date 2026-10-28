@@ -113,7 +113,7 @@ uv run --group web emap2lig-gui
 - **Types**: Use `|` for unions, lowercase `list`/`dict`
 - **Imports**: Ruff isort (`combine-as-imports = true`, `split-on-trailing-comma = true`)
 - **Lint rules**: `E`, `F`, `B`, `UP`, `RUF` selected
-- **Lint ignores**: `E501` (line length), `B006`/`B008` (mutable defaults), `F821`/`F722` (jaxtyping annotations), `B905`, `RUF001-003` (unicode), `F841` (unused vars), `E731` (lambda), `E741` (ambiguous names)
+- **Lint ignores**: `E501` (line length), `B006`/`B008` (mutable defaults), `B905`, `RUF001-003` (unicode), `F841` (unused vars), `E731` (lambda), `E741` (ambiguous names)
 - **Precision**: `tf32` on CUDA, BF16 mixed precision
 - **Serialization**: NPZ for data objects (`NumpySerializable`), safetensors for model weights
 - **CI**: GitHub Actions for lint (PR/push) and PyPI publish (tags); frontend dist sync PRs come from `shuuul/Emap2lig-web`

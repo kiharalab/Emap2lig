@@ -4,7 +4,6 @@ from typing import Literal
 
 import gemmi
 import numpy as np
-from jaxtyping import Float, Num
 
 from loguru import logger
 
@@ -56,9 +55,9 @@ class NumpySerializable:
 class MapObject(NumpySerializable):
     """Cryo-EM map object."""
 
-    grid_data: Num[np.ndarray, "d h w"]
-    voxel_size: Float[np.ndarray, "3"]
-    global_origin: Float[np.ndarray, "3"]
+    grid_data: np.ndarray  # (D, H, W)
+    voxel_size: np.ndarray  # (3,) float
+    global_origin: np.ndarray  # (3,) float
     emdb_id: str | None = None
 
     def __repr__(self) -> str:
