@@ -35,6 +35,7 @@ def run_fragment_detection(input_map: str, output_dir: str, cfg, emdb_id: str | 
     raw_obj = parse_mrc(input_path, emdb_id=emdb_id)
     unified_obj = get_unified_mrc(
         raw_obj,
+        emdb_id=emdb_id,
         min_spatial_size=fragment_spatial_size,
         extended_val=cfg.extended_val,
         contour_level=cfg.contour_level,
