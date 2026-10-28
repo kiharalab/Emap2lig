@@ -95,4 +95,4 @@ Loaded with `strict=False` in `load_state_dict()`.
 ## ANTI-PATTERNS
 
 - `strict=False` on state dict loading — hides structural drift between checkpoint and model
-- Dict/DictConfig args coerced to dataclasses in `__init__` — fragile pattern from Hydra integration
+- Dict args coerced to dataclasses in `__init__` (checkpoint hparams compatibility)

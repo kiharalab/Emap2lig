@@ -16,7 +16,7 @@ Inference pipeline for ligand structure modeling from cryo-EM maps. Two-stage ar
 ```
 src/emap2lig/                    # Core inference pipeline (~9.7k lines)
 ├── main.py                      # CLI + programmatic API (1411 lines)
-├── emap2lig.yaml                # Hydra config (at package root, not configs/)
+├── config.py                   # InferenceConfig defaults + model factories (no config file)
 ├── frag.py                      # Fragment segmentation CLI (166 lines)
 ├── data/                        # IO, dataset, chemistry (see data/AGENTS.md)
 │   ├── types.py                 # Core dataclasses: MapObject, LigandObject, DensityObject
@@ -63,7 +63,7 @@ Note: `extract-yaml` entry point was removed — use the PDB→YAML utility from
 
 | Function | Stage | Signature |
 |----------|-------|-----------|
-| `load_config(gpu, detection_batch_size, contour_level)` | Config | → `cfg` (Hydra config) |
+| `load_config(gpu, detection_batch_size, contour_level, num_sampling_steps)` | Config | → `InferenceConfig` |
 | `detect_ligand_objects(input_map, output_dir, cfg, emdb_id)` | Stage 1 | → `(status, blobs_dir)` |
 | `run_structure_modeling(blobs_dir, output_dir, ligand_records, cfg, gpu, multiplicity)` | Stage 2 | → `status` |
 | `parse_ligand_list(ligand_list_path)` | Utility | → `list[LigandRecord]` |

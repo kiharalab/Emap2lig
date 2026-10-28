@@ -28,7 +28,7 @@ status = run_structure_modeling(
 
 | Function | Stage | Returns |
 |----------|-------|---------|
-| `load_config(gpu, ...)` | Config | Hydra `cfg` |
+| `load_config(gpu, detection_batch_size, contour_level, num_sampling_steps)` | Config | `InferenceConfig` |
 | `detect_ligand_objects(input_map, output_dir, cfg, emdb_id)` | Find | `(status, blobs_dir)` |
 | `parse_ligand_list(path)` | Utility | `list[LigandRecord]` |
 | `run_structure_modeling(blobs_dir, output_dir, ligand_records, cfg, gpu, multiplicity, max_parallel_multiplicity=8)` | Build | `status` |
@@ -36,5 +36,9 @@ status = run_structure_modeling(
 `max_parallel_multiplicity` only limits how many conformers are generated in one
 forward pass; `multiplicity` remains the total conformer count. Results are
 written to the same output layout and sorted normally after inference.
+
+`load_config` starts from the built-in defaults in `emap2lig.config` and only
+overrides the arguments you pass. Model architecture and checkpoint settings are
+fixed in code (`build_detection_model`, `build_structure_model`).
 
 See also [CLI reference](cli.md) and [Output structure](output.md).

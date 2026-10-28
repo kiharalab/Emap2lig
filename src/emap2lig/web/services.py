@@ -291,6 +291,7 @@ async def run_modeling(
             gpu=primary_gpu,
             multiplicity=job.multiplicity,
             max_parallel_multiplicity=job.max_parallel_multiplicity,
+            num_sampling_steps=job.num_sampling_steps,
             blob_ids=blob_ids,
         )
         if status != 0:
@@ -321,13 +322,14 @@ def _model_sync(
     gpu: int,
     multiplicity: int,
     max_parallel_multiplicity: int,
+    num_sampling_steps: int | None = None,
     blob_ids: list[int] | None = None,
 ) -> int:
     from emap2lig.main import load_config, parse_ligand_list, run_structure_modeling
 
     with _ProgressCapture(job):
         job.progress = "Loading model configuration..."
-        cfg = load_config(gpu=gpu)
+        cfg = load_config(gpu=gpu, num_sampling_steps=num_sampling_steps)
         job.progress = "Parsing ligand YAML..."
         ligand_records = parse_ligand_list(Path(ligand_list_path))
         job.progress = "Running structure modeling..."

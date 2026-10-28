@@ -28,6 +28,6 @@ For commercial licensing inquiries, please contact the authors.
 When releasing new weights or CCD data:
 
 1. Upload to [KiharaLab/Emap2lig](https://huggingface.co/KiharaLab/Emap2lig).
-2. Update `filename` / `repo_id` in `src/emap2lig/emap2lig.yaml` (`detection_model`, `fragment_detection_model`, `model`).
-3. Update `REPO_ID` in `src/emap2lig/main.py` and `repo_id` in `src/emap2lig/data/ccd.py`.
+2. Update `WEIGHTS_REPO_ID` and the `*_WEIGHTS` filenames in `src/emap2lig/config.py`.
+3. Update `_HF_REPO_ID` in `src/emap2lig/data/ccd.py` if the repository changed.
 4. Update the CCD date in `get_ccd_dict(date="...")` in `src/emap2lig/data/ccd.py` when applicable.

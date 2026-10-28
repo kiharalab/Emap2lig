@@ -11,8 +11,6 @@ from pathlib import Path
 import numpy as np
 import torch
 import yaml
-from hydra import compose, initialize_config_dir
-from hydra.utils import instantiate
 from lightning import Trainer, seed_everything
 from loguru import logger
 from rdkit import Chem
@@ -22,6 +20,14 @@ import typer
 
 import rdkit
 
+from emap2lig.config import (
+    DETECTION_WEIGHTS,
+    STRUCTURE_WEIGHTS,
+    WEIGHTS_REPO_ID,
+    InferenceConfig,
+    build_detection_model,
+    build_structure_model,
+)
 from emap2lig.storage import fetch_weights, get_model_dir
 from emap2lig.data.ccd import CCDFetchError, get_ccd_mol, get_conformer_from_smiles
 from emap2lig.data.const import bond_type_ids, chirality_type_ids
@@ -41,10 +47,10 @@ from emap2lig.data.types import (
 # ---------------------------------------------------------------------------
 # Model weights directory & metadata
 # ---------------------------------------------------------------------------
-REPO_ID = "KiharaLab/Emap2lig"
+REPO_ID = WEIGHTS_REPO_ID
 MODEL_FILES: dict[str, str] = {
-    "detection_model": "emap2lig-find-v0.0.1.safetensors",
-    "structure_model": "emap2lig-build-v0.0.1.safetensors",
+    "detection_model": DETECTION_WEIGHTS,
+    "structure_model": STRUCTURE_WEIGHTS,
 }
 
 # Set default pickle properties
@@ -222,7 +228,7 @@ def ensure_weights() -> None:
 def detect_ligand_objects(
     input_map: Path | str,
     output_dir: Path | str,
-    cfg: object,
+    cfg: InferenceConfig,
     emdb_id: str | None = None,
 ) -> tuple[int, Path | None]:
     """Detect ligand objects in cryo-EM density maps using Emap2lig.
@@ -230,7 +236,7 @@ def detect_ligand_objects(
     Args:
         input_map: Path to input cryo-EM map file.
         output_dir: Directory to save output files.
-        cfg: Hydra configuration object.
+        cfg: Runtime configuration (from :func:`load_config`).
         emdb_id: EMDB ID for the map (optional).
 
     Returns:
@@ -249,7 +255,7 @@ def detect_ligand_objects(
         # Enforce platform accelerator inference for detection.
         device = resolve_inference_device(int(cfg.gpu))
 
-        detection_spatial_size = int(cfg.detection_model.spatial_size)
+        detection_spatial_size = int(cfg.detection_spatial_size)
         structure_spatial_size = int(cfg.spatial_size)
 
         # Output file paths/directories
@@ -302,9 +308,8 @@ def detect_ligand_objects(
                 0
             )  # [1, 1, D, H, W]
 
-            # Initialize model from config
-            logger.info("Initializing Emap2lig model from configuration")
-            detection_model = instantiate(cfg.detection_model)
+            logger.info("Initializing Emap2lig detection model")
+            detection_model = build_detection_model()
 
             output_device = torch.device("cpu")
 
@@ -1176,27 +1181,24 @@ def load_config(
     gpu: int = 0,
     detection_batch_size: int | None = None,
     contour_level: float | None = None,
-) -> object:
-    """Load Emap2lig configuration using Hydra.
+    num_sampling_steps: int | None = None,
+) -> InferenceConfig:
+    """Build the Emap2lig runtime configuration from built-in defaults.
 
     Args:
         gpu: CUDA GPU device ID on Linux; ignored except 0/-1 on macOS MPS.
-        detection_batch_size: Override detection batch size from config.
-        contour_level: Override contour level from config.
+        detection_batch_size: Override the default detection batch size (16).
+        contour_level: Override the contour level (default: auto/EMDB).
+        num_sampling_steps: Override the diffusion sampling steps (100).
 
     Returns:
-        Hydra configuration object.
+        :class:`~emap2lig.config.InferenceConfig` instance.
     """
-    overrides = []
-    if gpu is not None:
-        overrides.append(f"gpu={gpu}")
+    cfg = InferenceConfig(gpu=gpu, contour_level=contour_level)
     if detection_batch_size is not None:
-        overrides.append(f"detection_batch_size={detection_batch_size}")
-    if contour_level is not None:
-        overrides.append(f"contour_level={contour_level}")
-    config_dir = Path(__file__).resolve().parent
-    with initialize_config_dir(version_base=None, config_dir=str(config_dir)):
-        cfg = compose(config_name="emap2lig", overrides=overrides)
+        cfg.detection_batch_size = detection_batch_size
+    if num_sampling_steps is not None:
+        cfg.num_sampling_steps = num_sampling_steps
     return cfg
 
 
@@ -1222,7 +1224,7 @@ def run_structure_modeling(
     blobs_dir: Path | str,
     output_dir: Path | str,
     ligand_records: list[LigandRecord],
-    cfg,
+    cfg: InferenceConfig,
     gpu: int = 0,
     multiplicity: int = 1,
     max_parallel_multiplicity: int = 8,
@@ -1237,7 +1239,7 @@ def run_structure_modeling(
         blobs_dir: Directory containing detected blob NPZ files from Stage 1.
         output_dir: Root output directory (will contain ``build_struct/`` subdirectory).
         ligand_records: List of :class:`LigandRecord` objects specifying ligands.
-        cfg: Hydra configuration object (from :func:`load_config`).
+        cfg: Runtime configuration (from :func:`load_config`).
         gpu: CUDA GPU device ID on Linux; ignored except 0/-1 on macOS MPS.
         multiplicity: Number of conformers per blob per ligand.
         max_parallel_multiplicity: Maximum number of conformers generated in one
@@ -1327,8 +1329,8 @@ def run_structure_modeling(
     )
 
     # Initialize model
-    logger.info(f"Instantiating model {cfg.model._target_}")
-    model = instantiate(cfg.model)
+    logger.info("Initializing Emap2lig structure model")
+    model = build_structure_model(num_sampling_steps=cfg.num_sampling_steps)
 
     # Set multiplicity from CLI/API arguments (no need for model to infer it).
     model.predict_args.multiplicity = multiplicity
@@ -1392,7 +1394,7 @@ def main(
     detection_batch_size: int | None = typer.Option(
         None,
         "--detection-batch-size",
-        help="Batch size for detection model sliding window inference (overrides config default of 16)",
+        help="Batch size for detection model sliding window inference (default: 16)",
     ),
     emdb_id: str | None = typer.Option(None, "--emdb-id", help="EMDB ID for the map"),
     contour_level: float | None = typer.Option(
@@ -1413,10 +1415,16 @@ def main(
         min=1,
         help="Maximum conformers generated in one forward pass",
     ),
+    num_sampling_steps: int | None = typer.Option(
+        None,
+        "--num-sampling-steps",
+        min=1,
+        help="Diffusion sampling steps for structure modeling (default: 100)",
+    ),
     seed: int = typer.Option(42, "--seed", help="Random seed"),
 ):
     """Detect ligands in cryo-EM density maps using Emap2lig."""
-    # Enforce platform accelerator inference before loading config.
+    # Enforce platform accelerator inference before building the config.
     try:
         _require_accelerator(gpu)
     except (RuntimeError, ValueError) as exc:
@@ -1427,7 +1435,10 @@ def main(
 
     # Load configuration
     cfg = load_config(
-        gpu=gpu, detection_batch_size=detection_batch_size, contour_level=contour_level
+        gpu=gpu,
+        detection_batch_size=detection_batch_size,
+        contour_level=contour_level,
+        num_sampling_steps=num_sampling_steps,
     )
 
     # Create output directories

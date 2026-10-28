@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..schemas import JobCreateResponse, LigandSpec
 from ..services import (
@@ -22,6 +22,7 @@ class ModelRequest(BaseModel):
     gpu: list[int] | int = 0
     multiplicity: int = 1
     max_parallel_multiplicity: int = 8
+    num_sampling_steps: int | None = Field(default=None, ge=1)
 
 
 class BlobModelRequest(BaseModel):
@@ -32,6 +33,7 @@ class BlobModelRequest(BaseModel):
     gpu: list[int] | int = 0
     multiplicity: int = 1
     max_parallel_multiplicity: int = 8
+    num_sampling_steps: int | None = Field(default=None, ge=1)
 
 
 @router.post("/model", response_model=JobCreateResponse)
@@ -65,6 +67,7 @@ async def start_modeling(
         gpu=gpu_list,
         multiplicity=body.multiplicity,
         max_parallel_multiplicity=body.max_parallel_multiplicity,
+        num_sampling_steps=body.num_sampling_steps,
         detect_job_id=detect_job.id,
     )
     # Copy blob info from detect job
@@ -129,6 +132,7 @@ async def start_blob_modeling(
         gpu=gpu_list,
         multiplicity=body.multiplicity,
         max_parallel_multiplicity=body.max_parallel_multiplicity,
+        num_sampling_steps=body.num_sampling_steps,
         detect_job_id=parent_id,
     )
     job.blobs = parent_blobs

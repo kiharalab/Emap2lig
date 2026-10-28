@@ -80,7 +80,9 @@ def test_run_structure_modeling_uses_one_predict_with_capped_model_parallelism(
         "DataLoader",
         lambda dataset, **kwargs: SimpleNamespace(dataset=dataset, kwargs=kwargs),
     )
-    monkeypatch.setattr(main_module, "instantiate", lambda cfg: fake_model)
+    monkeypatch.setattr(
+        main_module, "build_structure_model", lambda **kwargs: fake_model
+    )
     monkeypatch.setattr(main_module, "LigandWriter", lambda **kwargs: object())
     monkeypatch.setattr(main_module, "Trainer", FakeTrainer)
     monkeypatch.setattr(
@@ -88,7 +90,7 @@ def test_run_structure_modeling_uses_one_predict_with_capped_model_parallelism(
     )
     monkeypatch.setattr(main_module, "create_blob_csv_tables", lambda output_dir: None)
 
-    cfg = SimpleNamespace(num_workers=0, model=SimpleNamespace(_target_="FakeModel"))
+    cfg = main_module.load_config(gpu=0)
     status = main_module.run_structure_modeling(
         blobs_dir=blobs_dir,
         output_dir=tmp_path,

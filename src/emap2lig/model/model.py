@@ -3,7 +3,6 @@ import sys
 from typing import Any
 
 from lightning.pytorch import LightningModule
-from omegaconf import DictConfig, OmegaConf
 from safetensors.torch import load_file
 import torch
 from torch import Tensor
@@ -214,30 +213,24 @@ class Emap2lig(LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        # Convert dict/DictConfig args to dataclass if needed
-        def to_dict(obj: Any) -> dict[str, Any]:
-            """Convert DictConfig or dict to regular dict."""
-            if isinstance(obj, DictConfig):
-                return OmegaConf.to_container(obj, resolve=True)  # type: ignore
-            return obj
-
-        if isinstance(conf_embedder_args, (dict, DictConfig)):
-            conf_embedder_args = ConformerEmbedderArgs(**to_dict(conf_embedder_args))
-        if isinstance(pairformer_args, (dict, DictConfig)):
-            pairformer_args = PairformerArgs(**to_dict(pairformer_args))
-        if isinstance(instance_seg_args, (dict, DictConfig)):
-            instance_seg_args = InstanceSegArgs(**to_dict(instance_seg_args))
-        if isinstance(auxiliary_args, (dict, DictConfig)):
-            auxiliary_args = AuxiliaryArgs(**to_dict(auxiliary_args))
+        # Convert dict args (e.g. from checkpoint hparams) to dataclasses
+        if isinstance(conf_embedder_args, dict):
+            conf_embedder_args = ConformerEmbedderArgs(**conf_embedder_args)
+        if isinstance(pairformer_args, dict):
+            pairformer_args = PairformerArgs(**pairformer_args)
+        if isinstance(instance_seg_args, dict):
+            instance_seg_args = InstanceSegArgs(**instance_seg_args)
+        if isinstance(auxiliary_args, dict):
+            auxiliary_args = AuxiliaryArgs(**auxiliary_args)
 
         # Handle diffusion_args specially since it has nested dataclass
-        if isinstance(diffusion_args, (dict, DictConfig)):
-            diffusion_args = to_dict(diffusion_args)
+        if isinstance(diffusion_args, dict):
+            diffusion_args = dict(diffusion_args)
             if "diffusion_model_args" in diffusion_args:
                 dm_args = diffusion_args["diffusion_model_args"]
-                if isinstance(dm_args, (dict, DictConfig)):
+                if isinstance(dm_args, dict):
                     diffusion_args["diffusion_model_args"] = DiffusionModuleArgs(
-                        **to_dict(dm_args)
+                        **dm_args
                     )
             diffusion_args = DiffusionArgs(**diffusion_args)
 
@@ -313,8 +306,8 @@ class Emap2lig(LightningModule):
         # Handle predict args
         if predict_args is None:
             self.predict_args = DiffusionPredictArgs()
-        elif isinstance(predict_args, (dict, DictConfig)):
-            self.predict_args = DiffusionPredictArgs(**to_dict(predict_args))
+        elif isinstance(predict_args, dict):
+            self.predict_args = DiffusionPredictArgs(**predict_args)
         else:
             self.predict_args = predict_args
 

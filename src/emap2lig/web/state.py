@@ -81,6 +81,7 @@ class Job:
     detection_batch_size: int | None = None
     multiplicity: int = 1
     max_parallel_multiplicity: int = 8
+    num_sampling_steps: int | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -25,7 +25,7 @@ for each blob.
 | `--input-map` | `TEXT` | *required* | Path to input cryo-EM map file |
 | `--output-dir` | `TEXT` | `./output` | Output directory |
 | `--gpu` | `INTEGER` | `0` | CUDA GPU device ID |
-| `--detection-batch-size` | `INTEGER` | config default (16) | Batch size for sliding window |
+| `--detection-batch-size` | `INTEGER` | 16 | Batch size for sliding window |
 | `--emdb-id` | `TEXT` | — | EMDB ID for contour level lookup |
 | `--contour-level` | `FLOAT` | — | Manual contour level override |
 | `--ligand-list` | `TEXT` | — | Path to ligand list YAML |
@@ -92,16 +92,17 @@ status = run_structure_modeling(
 | `parse_ligand_list(path)` | Parse a YAML ligand list → `list[LigandRecord]` |
 | `prepare_ligand_dataset(records, output_dir, ligands_dir)` | Prepare ligand data for modeling |
 
-## Config File
+## Configuration
 
-The Hydra config file is at `src/emap2lig/emap2lig.yaml` in the repository.
-Key settings that can be overridden at runtime:
+There is no config file. Defaults live in `src/emap2lig/config.py`
+(`InferenceConfig`); adjust them via CLI flags, the web GUI, or `load_config(...)`:
 
-| Config Key | CLI Equivalent | Description |
-|------------|---------------|-------------|
-| `gpu` | `--gpu` | CUDA device ID |
-| `detection_batch_size` | `--detection-batch-size` | Batch size for detection |
-| `spatial_size` | — | Crop size for sliding window (default: 48) |
+| Field | CLI Equivalent | Description |
+|-------|---------------|-------------|
+| `gpu` | `--gpu` | CUDA device ID (default: 0) |
+| `detection_batch_size` | `--detection-batch-size` | Batch size for detection (default: 16) |
+| `contour_level` | `--contour-level` | Manual contour level (default: auto) |
+| `num_sampling_steps` | `--num-sampling-steps` | Diffusion sampling steps (default: 100) |
 
 ## Supported Input Formats
 
