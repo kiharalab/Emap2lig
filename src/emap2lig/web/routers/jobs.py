@@ -98,7 +98,8 @@ async def get_job_results(job_id: str):
 # Tutorial: create virtual completed jobs from pre-computed output
 # ---------------------------------------------------------------------------
 
-_TUTORIAL_DIR = Path(__file__).resolve().parents[3] / "examples" / "tutorial_output"
+# Repository checkout only: examples/ is not shipped in the wheel.
+_TUTORIAL_DIR = Path(__file__).resolve().parents[4] / "examples" / "tutorial_output"
 
 
 @router.post("/tutorial/create-jobs")
