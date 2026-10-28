@@ -10,7 +10,6 @@
 
 ### Bug Fixes
 
-* **map:** pass --emdb-id through to contour level lookup ([edb43be](https://github.com/kiharalab/Emap2lig/commit/edb43be2ecd5b0dbbb657bfc1d2b1124288ce4b4))
 * **map:** pass --emdb-id through to contour level lookup ([7dfbc98](https://github.com/kiharalab/Emap2lig/commit/7dfbc9866c78797347bdf3b9b2de85b5f16bb3c6))
 * **web:** make the cache directory setting reach model loading ([ad21666](https://github.com/kiharalab/Emap2lig/commit/ad21666c4009e3a72d5117bc14800face5667d18))
 
