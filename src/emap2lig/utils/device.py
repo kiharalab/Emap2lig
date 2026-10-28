@@ -78,15 +78,6 @@ def resolve_device(gpu: int = 0) -> torch.device:
     )
 
 
-def trainer_device_kwargs(device: torch.device) -> dict[str, object]:
-    """Lightning ``Trainer`` accelerator/devices arguments for *device*."""
-    if device.type == "cuda":
-        return {"accelerator": "gpu", "devices": [device.index or 0]}
-    if device.type == "mps":
-        return {"accelerator": "mps", "devices": 1}
-    raise RuntimeError(f"Unsupported inference device: {device}")
-
-
 def list_accelerators() -> dict:
     """Describe the usable accelerators on this machine (for the web GUI)."""
     info: dict = {

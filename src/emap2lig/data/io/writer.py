@@ -4,8 +4,6 @@ from typing import Literal
 from pathlib import Path
 
 import numpy as np
-from lightning.pytorch import LightningModule, Trainer
-from lightning.pytorch.callbacks import BasePredictionWriter
 from torch import Tensor
 
 from emap2lig.data.io.mmcif import to_mmcif
@@ -68,17 +66,14 @@ def _resolve_ligand_name(name) -> str:
     return str(name)
 
 
-class LigandWriter(BasePredictionWriter):
-    """Custom writer for ligand predictions."""
+class LigandWriter:
+    """Writes each predicted batch to ``<output_dir>/blob_<id>/``."""
 
     def __init__(
         self,
         output_dir: Path,
-        write_interval: Literal["batch", "epoch", "batch_and_epoch"] = "batch",
         output_format: Literal["pdb", "mmcif"] = "mmcif",
     ):
-        super().__init__(write_interval)
-
         self.output_dir = output_dir
         self.output_format = output_format
         self.failed = 0
@@ -87,24 +82,22 @@ class LigandWriter(BasePredictionWriter):
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def write_on_batch_end(
+    def write(
         self,
-        trainer: Trainer,
-        pl_module: LightningModule,
-        prediction: dict[str, Tensor],
-        batch_indices: list[int],
+        prediction: dict[str, Tensor] | None,
         batch: dict[str, Tensor],
         batch_idx: int,
-        dataloader_idx: int,
     ) -> None:
         """Write predictions for a batch.
 
         Parameters
         ----------
-        prediction : dict[str, Tensor]
-            Model predictions
+        prediction : dict[str, Tensor] | None
+            Model predictions, or ``None`` when inference failed
         batch : dict[str, Tensor]
             Input batch data
+        batch_idx : int
+            Index of the batch, for log messages
         """
         # Skip if prediction is None or failed
         self.all += 1
@@ -330,10 +323,6 @@ class LigandWriter(BasePredictionWriter):
                 w.writerow(["conformer_name", "consistency_iou"])
             w.writerow([conformer_name, iou])
 
-    def on_predict_epoch_end(
-        self,
-        trainer: Trainer,
-        pl_module: LightningModule,
-    ) -> None:
-        """Print summary statistics."""
-        print(f"Number of failed / total predictions: {self.failed} / {self.all}")
+    def finish(self) -> None:
+        """Log summary statistics."""
+        logger.info(f"Number of failed / total predictions: {self.failed} / {self.all}")

@@ -10,7 +10,7 @@ from emap2lig.pipeline import build as build_module
 
 @pytest.fixture
 def fake_build(monkeypatch):
-    """Replace the model, dataset and trainer of the build stage with stubs."""
+    """Replace the model, dataset and predict loop of the build stage with stubs."""
 
     class FakeDataset:
         def __init__(self, density_object_list, ref_mol_dir, multiplicity):
@@ -23,20 +23,15 @@ def fake_build(monkeypatch):
 
     calls: list[dict] = []
 
-    class FakeTrainer:
-        def __init__(self, **kwargs):
-            pass
-
-        def predict(self, model, dataloaders, return_predictions=None):
-            dataset = dataloaders.dataset
-            calls.append(
-                {
-                    "blobs": [p.name for p in dataset.density_object_list],
-                    "ligands": sorted(p.name for p in dataset.ref_mol_dir.glob("*")),
-                    "multiplicity": dataset.multiplicity,
-                    "return_predictions": return_predictions,
-                }
-            )
+    def fake_predict(model, dataloader, writer, device):
+        dataset = dataloader.dataset
+        calls.append(
+            {
+                "blobs": [p.name for p in dataset.density_object_list],
+                "ligands": sorted(p.name for p in dataset.ref_mol_dir.glob("*")),
+                "multiplicity": dataset.multiplicity,
+            }
+        )
 
     def fake_prepare(records, ligands_dir):
         ligands_dir.mkdir(parents=True, exist_ok=True)
@@ -53,7 +48,7 @@ def fake_build(monkeypatch):
     )
     monkeypatch.setattr(build_module, "build_structure_model", lambda **kw: model)
     monkeypatch.setattr(build_module, "LigandWriter", lambda **kwargs: object())
-    monkeypatch.setattr(build_module, "Trainer", FakeTrainer)
+    monkeypatch.setattr(build_module, "_predict", fake_predict)
     monkeypatch.setattr(build_module, "resolve_device", lambda gpu: torch.device("mps"))
     monkeypatch.setattr(build_module, "rank_conformers", lambda *args: None)
     return SimpleNamespace(calls=calls, model=model)
@@ -78,7 +73,6 @@ def test_one_predict_pass_with_capped_parallelism(fake_build, tmp_path) -> None:
             "blobs": ["blob_1.npz"],
             "ligands": ["NAG.npz"],
             "multiplicity": 64,
-            "return_predictions": False,
         }
     ]
     assert fake_build.model.predict_args.multiplicity == 64
@@ -107,3 +101,33 @@ def test_missing_blobs_or_ligands_raise(fake_build, tmp_path) -> None:
     _write_blobs(tmp_path, [1])
     with pytest.raises(Emap2ligError, match="No ligand"):
         build_module.run_structure_modeling(tmp_path, [], InferenceConfig())
+
+
+def test_predict_moves_batches_and_writes_each() -> None:
+    class FakeModel(torch.nn.Module):
+        def predict_step(self, batch, batch_idx, num_batches):
+            assert not torch.is_grad_enabled()
+            assert not self.training
+            return {"total": num_batches, "x": batch["x"] * 2}
+
+    class FakeWriter:
+        def __init__(self):
+            self.written = []
+            self.finished = False
+
+        def write(self, prediction, batch, batch_idx):
+            self.written.append((batch_idx, prediction, batch))
+
+        def finish(self):
+            self.finished = True
+
+    batches = [{"x": torch.tensor([i]), "object_id": [str(i)]} for i in range(3)]
+    writer = FakeWriter()
+
+    build_module._predict(FakeModel(), batches, writer, torch.device("cpu"))
+
+    assert writer.finished
+    assert [idx for idx, _, _ in writer.written] == [0, 1, 2]
+    assert [p["total"] for _, p, _ in writer.written] == [3, 3, 3]
+    assert writer.written[2][1]["x"].item() == 4
+    assert writer.written[2][2]["object_id"] == ["2"]

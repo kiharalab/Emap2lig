@@ -105,9 +105,8 @@ Two settings have the largest effect on peak GPU memory:
 />
 
 Measured on Linux with an NVIDIA GeForce RTX 5090 32 GB, driver 610.62,
-`examples/emd_30556.map.gz`, PyTorch Lightning default precision
-(`32-true`, not bf16), and `nvidia-smi` peak sampling. Values vary with map
-size, ligand size, precision mode, driver, PyTorch/CUDA versions, and other GPU
+`examples/emd_30556.map.gz`, FP32 precision (not bf16), and `nvidia-smi` peak
+sampling. Values vary with map size, ligand size, precision mode, driver, PyTorch/CUDA versions, and other GPU
 processes.
 
 | GPU VRAM | Suggested Find `--detection-batch-size` | Suggested Build `--max-parallel-multiplicity` | Notes |

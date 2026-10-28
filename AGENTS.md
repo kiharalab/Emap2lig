@@ -22,7 +22,7 @@ src/emap2lig/                    # Core inference pipeline
 ├── pipeline/                    # Stage orchestration (no CLI/web knowledge)
 │   ├── preprocess.py            # load_unified_map (resample/normalize + save)
 │   ├── detect.py                # Find: segmentation → find_maps/ → find_blobs/
-│   ├── build.py                 # Build: ligands + blobs → Lightning predict → build_struct/
+│   ├── build.py                 # Build: ligands + blobs → predict loop → build_struct/
 │   ├── ranking.py               # rank_conformers: sort CSVs, copy best CIFs
 │   └── fragments.py             # run_fragment_detection
 ├── cli/                         # Typer entry points: main (emap2lig), frag, gui
@@ -40,7 +40,7 @@ src/emap2lig/                    # Core inference pipeline
 │   ├── download.py              # EMDB contour level fetching
 │   └── io/                      # mmCIF/MRC readers/writers
 ├── model/                       # Neural network architecture (see model/AGENTS.md)
-│   ├── model.py                 # Emap2lig LightningModule
+│   ├── model.py                 # Emap2lig nn.Module
 │   ├── pretrained.py            # Factories for the released checkpoints
 │   ├── layers/                  # Primitive operations (see layers/AGENTS.md)
 │   ├── modules/                 # Diffusion, conformer embedder, pairformer, instance seg
@@ -81,7 +81,7 @@ Stages raise exceptions (never `sys.exit`); `cli/common.run_stage` maps
 | User documentation | `docs/` | Installation, CLI, Web GUI, input/output formats |
 | Run inference | `uv run emap2lig --input-map X --output-dir Y --ligand-list Z` | `cli/main.py` → `pipeline/` |
 | Fragment detection | `uv run fragment-detect --input-map X` | Lightweight segmentation |
-| Model architecture | `src/emap2lig/model/model.py` | Emap2lig LightningModule |
+| Model architecture | `src/emap2lig/model/model.py` | Emap2lig nn.Module |
 | Segmentation model | `src/emap2lig/model/seg/model.py` | SlidingWindowSegmenter base; MUNetRegSeg / FragmentRegSeg |
 | Data pipeline | `src/emap2lig/data/dataset.py` | 149-dim atom features |
 | Core data types | `src/emap2lig/data/types.py` | NumpySerializable, structured arrays |
@@ -119,7 +119,7 @@ uv run --group web emap2lig-gui
 - **Imports**: Ruff isort (`combine-as-imports = true`, `split-on-trailing-comma = true`)
 - **Lint rules**: `E`, `F`, `B`, `UP`, `RUF` selected
 - **Lint ignores**: `E501` (line length), `B006`/`B008` (mutable defaults), `B905`, `RUF001-003` (unicode), `F841` (unused vars), `E731` (lambda), `E741` (ambiguous names)
-- **Precision**: `tf32` on CUDA, BF16 mixed precision
+- **Precision**: FP32 inference (TF32 matmuls on CUDA via `utils/runtime.py`), no autocast
 - **Serialization**: NPZ for data objects (`NumpySerializable`), safetensors for model weights
 - **CI**: GitHub Actions for lint (PR/push) and PyPI publish (tags); frontend dist sync PRs come from `shuuul/Emap2lig-web`
 

@@ -11,7 +11,7 @@ from emap2lig.model.model import Emap2lig
 def test_predict_step_returns_only_writer_tensors(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Drop bulky forward tensors so Lightning cannot retain voxel_features."""
+    """Drop bulky forward tensors so callers never hold voxel_features."""
     model = Emap2lig.__new__(Emap2lig)
     # Set up nn.Module internals so monkeypatch can delattr on teardown.
     torch.nn.Module.__init__(model)

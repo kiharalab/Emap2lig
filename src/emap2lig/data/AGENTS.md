@@ -14,7 +14,7 @@ Data handling for cryo-EM maps, ligand chemistry, and tokenization for structura
 - `simulate.py`: Vectorized NumPy density simulation from atomic coordinates using a binary sphere kernel. Used for structural verification and Mask IoU-based scoring of predicted models.
 - `io/mmcif.py`: High-fidelity mmCIF generation via `modelcif` and `ihm`. Ensures output compliance with PDBx/mmCIF standards for modeling metadata and entity/assembly definitions.
 - `io/map.py`: Low-level MRC file I/O using `mrcfile`. Handles voxel size extraction, origin detection, and reordering axes to standard ZYX orientation for consistency.
-- `io/writer.py`: PyTorch Lightning `BasePredictionWriter` for batch-wise serialization of predicted ligand structures (mmCIF), simulated density maps (MRC), Chimera marker files (CMM), and confidence summary tables (CSV).
+- `io/writer.py`: `LigandWriter`, called by the build-stage predict loop, for batch-wise serialization of predicted ligand structures (mmCIF), simulated density maps (MRC), Chimera marker files (CMM), and confidence summary tables (CSV).
 - `const.py`: Hardcoded chemical constants including atomic numbers, bond type definitions, and chirality types used for one-hot encoding of chemical features.
 - `download.py`: Utility for fetching contour levels from EMDB servers to automate map normalization during the data preparation phase.
 - `transforms.py`: Coordinate augmentation and atom name encoding utilities for training-time data transformation.

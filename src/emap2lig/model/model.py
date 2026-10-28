@@ -3,10 +3,9 @@ import logging
 import sys
 from typing import Any
 
-from lightning.pytorch import LightningModule
 from safetensors.torch import load_file
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from ..utils.weights import fetch_weights
 from .modules.conf_embedder import ConformerEmbedder
@@ -181,7 +180,7 @@ class AuxiliaryArgs:
     num_ring_sizes: int = 4
 
 
-class Emap2lig(LightningModule):
+class Emap2lig(nn.Module):
     def __init__(
         self,
         d_atom_in: int,
@@ -206,9 +205,8 @@ class Emap2lig(LightningModule):
         filename: str = "",
     ):
         super().__init__()
-        self.save_hyperparameters()
 
-        # Convert dict args (e.g. from checkpoint hparams) to dataclasses
+        # Accept plain dicts for the nested argument dataclasses
         if isinstance(conf_embedder_args, dict):
             conf_embedder_args = ConformerEmbedderArgs(**conf_embedder_args)
         if isinstance(pairformer_args, dict):
@@ -379,9 +377,9 @@ class Emap2lig(LightningModule):
         chunk_size = min(multiplicity, max_parallel_multiplicity)
 
         # Keep prompt points grouped as [B, multiplicity, 3] so large total
-        # multiplicity can be evaluated in smaller chunks inside one Lightning
-        # predict step.  That preserves a single Trainer progress bar while
-        # bounding peak accelerator memory.
+        # multiplicity can be evaluated in smaller chunks inside one predict
+        # step.  That keeps one batch per blob-ligand pair while bounding peak
+        # accelerator memory.
         prompt_points = feats["prompt_points"]
         if prompt_points.dim() == 2:
             batch_size = feats["input_density"].shape[0]
@@ -449,18 +447,18 @@ class Emap2lig(LightningModule):
         return out_dict
 
     def predict_step(
-        self, batch: dict[str, Any], batch_idx: int
+        self, batch: dict[str, Any], batch_idx: int, num_batches: int | None = None
     ) -> dict[str, Tensor] | None:
         """Run one blob-ligand inference batch.
 
         Returns only the tensors ``LigandWriter`` needs. The full ``forward()``
         dict includes ``voxel_features`` of shape ``[M, 64, 48, 48, 48]``
-        (~27 MiB per candidate). Lightning copies ``predict_step`` outputs to
-        host memory when ``return_predictions=True``.
+        (~27 MiB per candidate), which callers must not keep around.
 
         Args:
             batch: Collated ``LigandModelingDataset`` item.
-            batch_idx: Lightning predict batch index.
+            batch_idx: Predict batch index.
+            num_batches: Total number of batches, for progress messages.
 
         Returns:
             Writer outputs, or ``None`` when inference fails.
@@ -470,12 +468,7 @@ class Emap2lig(LightningModule):
         label = identifiers[0] if isinstance(identifiers, list) else identifiers
 
         # Show progress like "Predicting 3/59 batches — ligand ATP"
-        total = "?"
-        try:
-            if self.trainer and self.trainer.num_predict_batches:
-                total = self.trainer.num_predict_batches[0]
-        except Exception:
-            pass
+        total = "?" if num_batches is None else num_batches
         logger.info(f"Predicting {batch_idx + 1}/{total} batches — ligand {label}")
 
         try:

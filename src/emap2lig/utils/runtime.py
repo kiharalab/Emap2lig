@@ -1,5 +1,8 @@
 """Process-wide numeric and library settings for inference."""
 
+import random
+
+import numpy as np
 import torch
 
 _configured = False
@@ -21,3 +24,10 @@ def configure_runtime() -> None:
         torch.backends.cudnn.allow_tf32 = True
         torch._dynamo.config.cache_size_limit = 2048
         torch._dynamo.config.accumulated_cache_size_limit = 2048
+
+
+def seed_everything(seed: int) -> None:
+    """Seed Python, NumPy and torch (all devices) RNGs."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)

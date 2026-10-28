@@ -4,9 +4,11 @@ import logging
 import shutil
 import uuid
 from pathlib import Path
+from typing import Any
 
-from lightning import Trainer
+import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from ..config import InferenceConfig
 from ..data.dataset import LigandModelingDataset, collate_fn
@@ -15,8 +17,9 @@ from ..data.io.writer import LigandWriter
 from ..data.types import LigandRecord
 from ..errors import Emap2ligError
 from ..layout import OutputLayout
+from ..model.model import Emap2lig
 from ..model.pretrained import build_structure_model
-from ..utils.device import resolve_device, trainer_device_kwargs
+from ..utils.device import resolve_device
 from ..utils.runtime import configure_runtime
 from .ranking import rank_conformers
 
@@ -70,7 +73,7 @@ def run_structure_modeling(
             raise Emap2ligError("No ligand could be prepared from the ligand list")
 
         # One batch per blob-ligand pair; the model chunks the multiplicity
-        # internally so Lightning shows a single progress pass.
+        # internally so there is a single progress pass.
         dataset = LigandModelingDataset(
             density_object_list=blob_paths,
             ref_mol_dir=ligands_dir,
@@ -91,16 +94,11 @@ def run_structure_modeling(
 
         layout.build_struct.mkdir(parents=True, exist_ok=True)
         writer = LigandWriter(output_dir=layout.build_struct, output_format="mmcif")
-        trainer = Trainer(
-            **trainer_device_kwargs(device), callbacks=[writer], logger=False
-        )
         logger.info(
             f"Running inference on {len(dataset)} combinations with multiplicity "
             f"{cfg.multiplicity} (max parallel {cfg.max_parallel_multiplicity})"
         )
-        # LigandWriter persists every batch; returning predictions would keep
-        # ~27 MiB of voxel features per conformer on the host.
-        trainer.predict(model, dataloaders=dataloader, return_predictions=False)
+        _predict(model, dataloader, writer, device)
         logger.info("Inference completed.")
     finally:
         if incremental:
@@ -108,3 +106,33 @@ def run_structure_modeling(
 
     rank_conformers(layout.build_struct, layout.best)
     return layout.build_struct
+
+
+def _predict(
+    model: Emap2lig,
+    dataloader: DataLoader,
+    writer: LigandWriter,
+    device: torch.device,
+) -> None:
+    """Run *model* over *dataloader*, handing each batch to *writer*."""
+    # Move the weights outside inference mode: inference-tensor parameters
+    # change what the compiled submodules generate, and with it the outputs.
+    model.to(device).eval()
+    num_batches = len(dataloader)
+    with torch.inference_mode():
+        for batch_idx, batch in enumerate(tqdm(dataloader, desc="Predicting")):
+            batch = _to_device(batch, device)
+            prediction = model.predict_step(batch, batch_idx, num_batches)
+            writer.write(prediction, batch, batch_idx)
+    writer.finish()
+
+
+def _to_device(data: Any, device: torch.device) -> Any:
+    """Move the tensors in a (nested) batch to *device*."""
+    if isinstance(data, torch.Tensor):
+        return data.to(device)
+    if isinstance(data, dict):
+        return {key: _to_device(value, device) for key, value in data.items()}
+    if isinstance(data, list | tuple):
+        return type(data)(_to_device(value, device) for value in data)
+    return data

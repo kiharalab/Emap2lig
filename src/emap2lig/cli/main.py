@@ -63,10 +63,9 @@ def main(
         num_sampling_steps=num_sampling_steps,
     )
 
-    from lightning import seed_everything
-
     from ..data.ligand_list import parse_ligand_list
     from ..pipeline import detect_ligand_objects, run_structure_modeling
+    from ..utils.runtime import seed_everything
 
     seed_everything(seed)
     ligand_records = parse_ligand_list(ligand_list)

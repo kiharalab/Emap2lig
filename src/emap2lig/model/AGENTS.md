@@ -12,7 +12,7 @@ Two-stage neural architecture: ConformerEmbedder encodes molecular graphs → Pa
 
 ```
 model/
-├── model.py             # Emap2lig LightningModule + 6 arg dataclasses (461 lines)
+├── model.py             # Emap2lig nn.Module + 6 arg dataclasses (461 lines)
 ├── __init__.py          # Exports: Emap2lig + all *Args dataclasses
 ├── modules/             # High-level composite modules (see modules/AGENTS.md)
 │   ├── diffusion.py     # AtomDiffusion: EDM sampling loop (509 lines)
@@ -28,7 +28,7 @@ model/
 ## COMPOSITION
 
 ```
-Emap2lig (LightningModule)
+Emap2lig (nn.Module)
 ├── conf_embedder: ConformerEmbedder      # atom/pair feature → d_atom/d_pair
 ├── pairformer: PairFormer                # N × PairFormerBlock (triangular attention)
 ├── auxiliary_module: AuxiliaryModule      # distogram, element, chirality, bond, ring heads
@@ -95,4 +95,4 @@ Loaded with `strict=False` in `load_state_dict()`.
 ## ANTI-PATTERNS
 
 - `strict=False` on state dict loading — hides structural drift between checkpoint and model
-- Dict args coerced to dataclasses in `__init__` (checkpoint hparams compatibility)
+- Dict args coerced to dataclasses in `__init__` (callers may pass plain dicts)
