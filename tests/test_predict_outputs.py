@@ -13,6 +13,8 @@ def test_predict_step_returns_only_writer_tensors(
 ) -> None:
     """Drop bulky forward tensors so Lightning cannot retain voxel_features."""
     model = Emap2lig.__new__(Emap2lig)
+    # Set up nn.Module internals so monkeypatch can delattr on teardown.
+    torch.nn.Module.__init__(model)
     model.predict_args = SimpleNamespace(
         num_sampling_steps=20,
         multiplicity=1,
