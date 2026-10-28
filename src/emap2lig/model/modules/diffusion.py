@@ -1,3 +1,4 @@
+import logging
 import math
 from dataclasses import dataclass
 
@@ -7,7 +8,7 @@ from torch.nn import Module, functional as F
 from ..layers import AtomDecoder
 from .conditioning import AtomConditioner, PointConditioner
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 @dataclass

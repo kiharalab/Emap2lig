@@ -1,11 +1,12 @@
 from dataclasses import asdict, dataclass
+import logging
 from pathlib import Path
 from typing import Literal
 
 import gemmi
 import numpy as np
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 ####################################################################################################

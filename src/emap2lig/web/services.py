@@ -7,6 +7,7 @@ so the FastAPI module loads instantly.
 from __future__ import annotations
 
 import asyncio
+import logging
 import platform
 import sys
 from pathlib import Path
@@ -25,7 +26,7 @@ from .results_scan import (
 from .schemas import LigandSpec
 from .state import Job
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -33,15 +34,17 @@ from loguru import logger
 # ---------------------------------------------------------------------------
 
 
-def _make_job_sink(job: Job):
-    """Create a loguru sink that forwards log messages to ``job.progress``."""
+class _JobLogHandler(logging.Handler):
+    """Logging handler that forwards ``emap2lig`` log messages to ``job.progress``."""
 
-    def _sink(message):
-        line = message.record["message"].strip()
+    def __init__(self, job: Job):
+        super().__init__(level=logging.INFO)
+        self.job = job
+
+    def emit(self, record: logging.LogRecord) -> None:
+        line = record.getMessage().strip()
         if line:
-            job.progress = line
-
-    return _sink
+            self.job.progress = line
 
 
 class _TeeWriter:
@@ -97,16 +100,17 @@ class _ProgressCapture:
 
     def __init__(self, job: Job):
         self.job = job
-        self._sink_id: int | None = None
+        self._handler = _JobLogHandler(job)
+        self._pkg_logger = logging.getLogger("emap2lig")
+        self._old_level = self._pkg_logger.level
         self._old_stdout = None
         self._old_stderr = None
 
     def __enter__(self):
-        self._sink_id = logger.add(
-            _make_job_sink(self.job),
-            filter=lambda record: record["name"].startswith("emap2lig"),
-            level="INFO",
-        )
+        # Make sure INFO records are emitted even if logging is unconfigured.
+        if self._pkg_logger.getEffectiveLevel() > logging.INFO:
+            self._pkg_logger.setLevel(logging.INFO)
+        self._pkg_logger.addHandler(self._handler)
         self._old_stdout = sys.stdout
         self._old_stderr = sys.stderr
         sys.stdout = _TeeWriter(self._old_stdout, self.job)  # type: ignore[assignment]
@@ -116,8 +120,8 @@ class _ProgressCapture:
     def __exit__(self, *exc):
         sys.stdout = self._old_stdout  # type: ignore[assignment]
         sys.stderr = self._old_stderr  # type: ignore[assignment]
-        if self._sink_id is not None:
-            logger.remove(self._sink_id)
+        self._pkg_logger.removeHandler(self._handler)
+        self._pkg_logger.setLevel(self._old_level)
         return False
 
 

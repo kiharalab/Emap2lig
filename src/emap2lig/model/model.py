@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 import sys
 from typing import Any
 
@@ -13,7 +14,7 @@ from .modules.diffusion import AtomDiffusion, DiffusionModuleArgs
 from .modules.instance_seg import InstanceSegModule
 from .modules.pairformer import AuxiliaryModule, PairFormer
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 @dataclass

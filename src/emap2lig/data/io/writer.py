@@ -1,4 +1,5 @@
 import csv
+import logging
 from typing import Literal
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from emap2lig.data.simulate import gaussian_blur_and_iou
 from emap2lig.data.types import LigandObject, MapObject
 from emap2lig.model.seg.threshold import threshold_li
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 def to_cmm(

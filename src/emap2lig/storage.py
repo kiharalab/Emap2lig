@@ -5,11 +5,13 @@ All paths derive from a single root, ``~/.emap2lig`` by default. Set the
 to move it.
 """
 
+import logging
 import os
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download
-from loguru import logger
+
+logger = logging.getLogger(__name__)
 
 _home = Path(os.environ.get("EMAP2LIG_HOME", Path.home() / ".emap2lig")).expanduser()
 

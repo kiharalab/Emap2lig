@@ -1,9 +1,11 @@
+import logging
+
 import numpy as np
 import torch
 import torch.nn as nn
 from einops import rearrange
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 class SelfAttention(nn.Module):

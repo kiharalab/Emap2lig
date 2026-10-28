@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from collections.abc import Iterator
 
@@ -9,7 +10,7 @@ from rdkit import Chem
 
 from emap2lig.data.types import CIFObject, LigandObject
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 def _parse_mmcif(

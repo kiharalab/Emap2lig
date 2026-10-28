@@ -1,3 +1,4 @@
+import logging
 from typing import Literal
 import sys
 
@@ -7,7 +8,7 @@ import torch
 from .download import get_contour_level
 from .types import MapObject
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 def get_unified_mrc(

@@ -1,5 +1,8 @@
+import logging
+
 import requests
-from loguru import logger
+
+logger = logging.getLogger(__name__)
 
 
 def get_contour_level(emdb_id):

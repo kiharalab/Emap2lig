@@ -2,6 +2,7 @@
 """Emap2lig CLI and programmatic inference API."""
 
 import csv
+import logging
 import platform
 import shutil
 import sys
@@ -12,7 +13,6 @@ import numpy as np
 import torch
 import yaml
 from lightning import Trainer, seed_everything
-from loguru import logger
 from rdkit import Chem
 from scipy import ndimage
 from torch.utils.data import DataLoader
@@ -28,6 +28,7 @@ from emap2lig.config import (
     build_detection_model,
     build_structure_model,
 )
+from emap2lig.log import setup_logging
 from emap2lig.storage import fetch_weights, get_model_dir
 from emap2lig.data.ccd import CCDFetchError, get_ccd_mol, get_conformer_from_smiles
 from emap2lig.data.const import bond_type_ids, chirality_type_ids
@@ -43,6 +44,8 @@ from emap2lig.data.types import (
     LigandRecord,
     MapObject,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Model weights directory & metadata
@@ -1424,6 +1427,7 @@ def main(
     seed: int = typer.Option(42, "--seed", help="Random seed"),
 ):
     """Detect ligands in cryo-EM density maps using Emap2lig."""
+    setup_logging()
     # Enforce platform accelerator inference before building the config.
     try:
         _require_accelerator(gpu)

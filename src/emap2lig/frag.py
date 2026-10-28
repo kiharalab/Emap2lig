@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import logging
 from pathlib import Path
 
 import torch
@@ -8,10 +9,10 @@ from emap2lig.config import InferenceConfig, build_fragment_detection_model
 from emap2lig.data.io.map import parse_mrc, to_mrc
 from emap2lig.data.map import get_unified_mrc
 from emap2lig.data.types import MapObject
+from emap2lig.log import setup_logging
 from emap2lig.main import _require_accelerator, load_config, resolve_inference_device
 
-
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 def run_fragment_detection(
@@ -123,6 +124,7 @@ def main(
     ),
 ):
     """Run fragment detection using FragmentRegSeg and save predictions."""
+    setup_logging()
     try:
         _require_accelerator(gpu)
     except (RuntimeError, ValueError) as exc:

@@ -1,3 +1,4 @@
+import logging
 import math
 
 import torch
@@ -5,6 +6,8 @@ import torch.nn.init as init
 from torch import Tensor, nn
 
 from .primitives import LayerNorm, LinearNoBias
+
+logger = logging.getLogger(__name__)
 
 try:
     from cuequivariance_torch.primitives.triangle import (
@@ -14,8 +17,6 @@ try:
     HAS_CUEQUIVARIANCE = True
 except ImportError:
     HAS_CUEQUIVARIANCE = False
-
-from loguru import logger
 
 
 @torch.compiler.disable

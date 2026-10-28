@@ -1,5 +1,8 @@
+import logging
+
 import torch
-from loguru import logger
+
+logger = logging.getLogger(__name__)
 
 
 def threshold_li(

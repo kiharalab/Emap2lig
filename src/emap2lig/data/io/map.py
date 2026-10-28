@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import mrcfile  # type: ignore
@@ -5,7 +6,7 @@ import numpy as np
 
 from emap2lig.data.types import MapObject  # type: ignore
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 def _parse_mrc(

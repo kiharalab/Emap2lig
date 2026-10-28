@@ -1,3 +1,5 @@
+import logging
+
 import torch
 from torch import nn
 from safetensors.torch import load_file
@@ -8,7 +10,7 @@ from ...storage import fetch_weights
 from .munet import MUNetBackbone
 from .threshold import threshold_li
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 
 
 def tensor_to_point_cloud(

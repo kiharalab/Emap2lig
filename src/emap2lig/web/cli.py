@@ -194,6 +194,10 @@ def main(
 
     import uvicorn
 
+    from emap2lig.log import setup_logging
+
+    setup_logging()
+
     uvicorn.run(
         "emap2lig.web.app:app",
         host=host,
