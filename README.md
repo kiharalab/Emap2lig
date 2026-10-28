@@ -34,6 +34,14 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 
 ## Latest Updates
 
+- **2026-10-28: Release v0.5.0**
+  - Python 3.13 and 3.14 are now supported (3.12–3.14).
+  - `--emdb-id` now sets the map threshold from the EMDB-recommended contour level.
+  - Model weights and the CCD cache share one storage root (`~/.emap2lig`, override
+    with `EMAP2LIG_HOME`); the Web GUI cache-directory setting now applies to model
+    loading.
+  - Fewer dependencies: numba, fairscale, scikit-image and jaxtyping were removed.
+
 - **2026-06-19: PyPI Release (v0.4.1)**
   - Published on [PyPI](https://pypi.org/project/emap2lig/): `pip install emap2lig` or
     `pip install "emap2lig[web]"` for the Web GUI (`emap2lig-gui`).
