@@ -11,7 +11,7 @@ Data handling for cryo-EM maps, ligand chemistry, and tokenization for structura
 - `dataset.py`: `LigandModelingDataset` implementation for tokenizing ligands into graph representations using RDKit and Gemmi. Handles mapping localized density regions (blobs) to neural network inputs with 149-dim atom features and 9-dim bond features.
 - `map.py`: Standardized MRC map processing pipeline including resampling (to 1.0 Å/voxel), normalization via EMDB contour levels, and automated spatial cropping based on content density.
 - `ccd.py`: Interface for Chemical Component Dictionary (CCD) retrieval from Hugging Face and RDKit-based 3D coordinate generation using ETKDG (v2/v3) methods for reference conformers.
-- `simulate.py`: Numba-accelerated density simulation from atomic coordinates using a binary sphere kernel. Used for structural verification and Mask IoU-based scoring of predicted models.
+- `simulate.py`: Vectorized NumPy density simulation from atomic coordinates using a binary sphere kernel. Used for structural verification and Mask IoU-based scoring of predicted models.
 - `io/mmcif.py`: High-fidelity mmCIF generation via `modelcif` and `ihm`. Ensures output compliance with PDBx/mmCIF standards for modeling metadata and entity/assembly definitions.
 - `io/map.py`: Low-level MRC file I/O using `mrcfile`. Handles voxel size extraction, origin detection, and reordering axes to standard ZYX orientation for consistency.
 - `io/writer.py`: PyTorch Lightning `BasePredictionWriter` for batch-wise serialization of predicted ligand structures (mmCIF), simulated density maps (MRC), Chimera marker files (CMM), and confidence summary tables (CSV).
@@ -32,4 +32,4 @@ Data handling for cryo-EM maps, ligand chemistry, and tokenization for structura
 - **Chemistry**: RDKit, Gemmi, pdbeccdutils
 - **Cryo-EM**: mrcfile, Gemmi (mmCIF parsing only)
 - **Formatters**: modelcif, ihm
-- **Performance**: Numba, Numpy, Jaxtyping
+- **Performance**: NumPy, Jaxtyping

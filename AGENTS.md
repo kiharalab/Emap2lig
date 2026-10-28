@@ -23,7 +23,7 @@ src/emap2lig/                    # Core inference pipeline (~9.7k lines)
 │   ├── dataset.py               # LigandModelingDataset (579 lines, 149-dim atom features)
 │   ├── map.py                   # MRC processing: resample, normalize, crop (512 lines)
 │   ├── ccd.py                   # CCD retrieval (HuggingFace), ETKDG conformers
-│   ├── simulate.py              # Numba-accelerated density simulation for IoU scoring
+│   ├── simulate.py              # Vectorized NumPy density simulation for IoU scoring
 │   ├── const.py                 # Chemical constants (128 elements, 7 chiralities, 5 bond types)
 │   ├── transforms.py            # Coordinate augmentation, atom name encoding
 │   ├── download.py              # EMDB contour level fetching
