@@ -39,16 +39,6 @@ cd "$(dirname "$0")/../../.."
 uv sync
 echo "✅ Installation complete"
 
-# Check Node.js for frontend rebuild (optional; pre-built dist/ needs no npm)
-if command -v node &>/dev/null; then
-	echo "✅ Node.js found: $(node --version)"
-	echo "   Web GUI: uv sync --group web && uv run emap2lig-gui"
-	echo "   Frontend dev: clone shuuul/Emap2lig-web, npm install, npm run dev"
-else
-	echo "ℹ️  Node.js not found — OK for normal Web GUI use (pre-built dist/)."
-	echo "   Install Node.js 18+ only if you need --rebuild / frontend dev."
-fi
-
 echo ""
 echo "🚀 Ready! Try:"
 echo "   uv run emap2lig --help"

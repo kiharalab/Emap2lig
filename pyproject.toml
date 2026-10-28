@@ -45,33 +45,9 @@ fragment-detect = "emap2lig.frag:app"
 emap2lig-gui = "emap2lig.web.cli:cli"
 
 [tool.uv.build-backend]
-# Ship only pre-built frontend/dist/ in distributions — not React source or tooling.
-source-exclude = [
-    "**/AGENTS.md",
-    "**/node_modules/**",
-    "**/frontend/src/**",
-    "**/frontend/vite/**",
-    "**/frontend/public/**",
-    "**/frontend/package.json",
-    "**/frontend/package-lock.json",
-    "**/frontend/vite.config.ts",
-    "**/frontend/tsconfig*.json",
-    "**/frontend/eslint.config.js",
-    "**/frontend/index.html",
-]
-wheel-exclude = [
-    "**/AGENTS.md",
-    "**/node_modules/**",
-    "**/frontend/src/**",
-    "**/frontend/vite/**",
-    "**/frontend/public/**",
-    "**/frontend/package.json",
-    "**/frontend/package-lock.json",
-    "**/frontend/vite.config.ts",
-    "**/frontend/tsconfig*.json",
-    "**/frontend/eslint.config.js",
-    "**/frontend/index.html",
-]
+# Frontend source lives in shuuul/Emap2lig-web; only frontend/dist/ is in this repo.
+source-exclude = ["**/AGENTS.md", "**/frontend/.gitignore"]
+wheel-exclude = ["**/AGENTS.md", "**/frontend/.gitignore"]
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14"]

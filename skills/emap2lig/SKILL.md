@@ -147,7 +147,6 @@ This starts the server at **http://localhost:40427** (configurable with `--port`
 | Option | Description |
 |--------|-------------|
 | `--port INT` | Port to serve on (default: 40427) |
-| `--rebuild` | Force-rebuild frontend even if `dist/` exists |
 | `--no-browser` | Don't auto-open browser |
 
 ### GUI Workflow

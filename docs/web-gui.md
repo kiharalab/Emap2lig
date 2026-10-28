@@ -45,7 +45,6 @@ uv run --group web emap2lig-gui --no-browser
 |--------|-------------|
 | `--port INT` | Port (default: `40427`) |
 | `--no-browser` | Do not open a browser tab |
-| `--rebuild` | Rebuild frontend (requires a separate [Emap2lig-web](https://github.com/shuuul/Emap2lig-web) checkout; see below) |
 
 ## Frontend development
 

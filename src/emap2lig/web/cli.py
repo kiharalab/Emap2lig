@@ -9,20 +9,18 @@ Or:
 
 Options:
     --port INT       Port to serve on (default: 40427)
-    --rebuild        Force-rebuild the frontend even if dist/ exists
     --no-browser     Don't auto-open the browser
 
 What it does:
-    1. Uses pre-built frontend/dist/ when present (no npm required)
-    2. Optionally installs npm deps and rebuilds (--rebuild, or missing dist/)
-    3. Frees the chosen port if something stale is occupying it
-    4. Opens http://localhost:<port> in the default browser
-    5. Starts the FastAPI/Uvicorn server
+    1. Checks that the pre-built frontend/dist/ is present (no npm required;
+       the frontend source lives in shuuul/Emap2lig-web)
+    2. Frees the chosen port if something stale is occupying it
+    3. Opens http://localhost:<port> in the default browser
+    4. Starts the FastAPI/Uvicorn server
 """
 
 from __future__ import annotations
 
-import shutil
 import signal
 import socket
 import subprocess
@@ -36,66 +34,10 @@ from typing import Annotated
 import typer
 
 WEB_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = WEB_DIR / "frontend"
-DIST_DIR = FRONTEND_DIR / "dist"
+DIST_DIR = WEB_DIR / "frontend" / "dist"
 DEFAULT_PORT = 40427
 
 cli = typer.Typer(add_completion=False)
-
-
-def _check_npm() -> str:
-    """Return the path to npm, or exit with a helpful message."""
-    npm = shutil.which("npm")
-    if npm is None:
-        print(
-            "ERROR: npm is not installed. "
-            "Install Node.js from https://nodejs.org/ and try again.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return npm
-
-
-def _npm_install(npm: str) -> None:
-    """Run `npm install` if node_modules/ doesn't exist yet."""
-    node_modules = FRONTEND_DIR / "node_modules"
-    if node_modules.is_dir():
-        print("  npm dependencies already installed, skipping.")
-        return
-    print("  Installing npm dependencies...")
-    subprocess.run([npm, "install"], cwd=FRONTEND_DIR, check=True)
-
-
-def _npm_build(npm: str, *, rebuild: bool = False) -> None:
-    """Run `npm run build` to produce frontend/dist/."""
-    if DIST_DIR.is_dir() and not rebuild:
-        print("  Frontend already built, skipping. (use --rebuild to force)")
-        return
-    package_json = FRONTEND_DIR / "package.json"
-    if not package_json.is_file():
-        print(
-            "ERROR: frontend source is not available in this checkout.\n"
-            "  PyPI installs and kiharalab/Emap2Lig ship frontend/dist/ only.\n"
-            "  Build from shuuul/Emap2lig-web and copy dist/, or remove --rebuild.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    print("  Building frontend...")
-    subprocess.run([npm, "run", "build"], cwd=FRONTEND_DIR, check=True)
-
-
-def _prepare_frontend(*, rebuild: bool) -> None:
-    """Ensure frontend/dist exists, using npm only when necessary."""
-    if DIST_DIR.is_dir() and not rebuild:
-        print("  Using pre-built frontend (emap2lig/web/frontend/dist/).")
-        return
-
-    if not DIST_DIR.is_dir():
-        print("  No pre-built frontend found; building from source...")
-
-    npm = _check_npm()
-    _npm_install(npm)
-    _npm_build(npm, rebuild=rebuild)
 
 
 def _port_in_use(port: int) -> bool:
@@ -149,12 +91,6 @@ def main(
         int,
         typer.Option(help="Port to serve on."),
     ] = DEFAULT_PORT,
-    rebuild: Annotated[
-        bool,
-        typer.Option(
-            "--rebuild", help="Force-rebuild the frontend even if dist/ exists."
-        ),
-    ] = False,
     no_browser: Annotated[
         bool,
         typer.Option("--no-browser", help="Don't auto-open the browser."),
@@ -165,14 +101,16 @@ def main(
     url = f"http://{host}:{port}"
 
     # ── 1. Frontend build ────────────────────────────────────────
-    print("[1/4] Preparing frontend...")
-    _prepare_frontend(rebuild=rebuild)
+    print("[1/4] Checking frontend...")
     if not DIST_DIR.is_dir():
         print(
-            "ERROR: frontend/dist/ is missing after prepare step.",
+            f"ERROR: pre-built frontend not found at {DIST_DIR}.\n"
+            "  Build it from shuuul/Emap2lig-web "
+            "(EMAP2LIG_DIST_DIR=<this path> npm run build).",
             file=sys.stderr,
         )
         sys.exit(1)
+    print("  Using pre-built frontend (emap2lig/web/frontend/dist/).")
     print()
 
     # ── 2. Free port ─────────────────────────────────────────────
