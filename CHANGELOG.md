@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0](https://github.com/kiharalab/Emap2lig/compare/v0.4.4...v0.5.0) (2026-10-28)
+
+
+### Features
+
+* support Python 3.13 and 3.14 ([3436c9a](https://github.com/kiharalab/Emap2lig/commit/3436c9a0c06af5fead2471958c7af4ed02a8602c))
+
+
+### Bug Fixes
+
+* **map:** pass --emdb-id through to contour level lookup ([7dfbc98](https://github.com/kiharalab/Emap2lig/commit/7dfbc9866c78797347bdf3b9b2de85b5f16bb3c6))
+* **web:** make the cache directory setting reach model loading ([ad21666](https://github.com/kiharalab/Emap2lig/commit/ad21666c4009e3a72d5117bc14800face5667d18))
+
+
+### Documentation
+
+* **readme:** serve DeepWiki badge from shields.io ([f3073d7](https://github.com/kiharalab/Emap2lig/commit/f3073d73c5c55507c73cda8f1b8953320d0e7d28))
+
 ## [0.4.4](https://github.com/kiharalab/Emap2lig/compare/v0.4.3...v0.4.4) (2026-08-14)
 
 
