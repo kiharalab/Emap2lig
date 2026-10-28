@@ -1,18 +1,14 @@
-from pathlib import Path
-
 import torch
 from torch import nn
-from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 
+from ...storage import fetch_weights
 from .munet import MUNetBackbone
 from .threshold import threshold_li
 
 from loguru import logger
-
-_MODEL_DIR = str(Path.home() / ".emap2lig" / "models")
 
 
 def tensor_to_point_cloud(
@@ -211,13 +207,7 @@ class MUNetRegSeg(nn.Module):
         self.labels = ["backbone", "sidechain", "sugar", "phosphate", "base", "ligand"]
 
         if load_pretrained:
-            local_path = Path(_MODEL_DIR) / filename
-            if local_path.exists():
-                model_path = str(local_path)
-            else:
-                model_path = hf_hub_download(
-                    repo_id=repo_id, filename=filename, local_dir=_MODEL_DIR
-                )
+            model_path = fetch_weights(repo_id, filename)
             self.load_state_dict(load_file(model_path))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -406,13 +396,7 @@ class FragmentRegSeg(nn.Module):
         self.spatial_size = spatial_size
 
         if load_pretrained:
-            local_path = Path(_MODEL_DIR) / filename
-            if local_path.exists():
-                model_path = str(local_path)
-            else:
-                model_path = hf_hub_download(
-                    repo_id=repo_id, filename=filename, local_dir=_MODEL_DIR
-                )
+            model_path = fetch_weights(repo_id, filename)
             self.load_state_dict(load_file(model_path))
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

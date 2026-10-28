@@ -1,7 +1,7 @@
 import torch
-from fairscale.nn.checkpoint.checkpoint_activations import checkpoint_wrapper
 from torch import nn
 
+from ..layers.checkpoint import checkpoint_wrapper
 from ..layers import (
     MLP,
     AttentionPairBias,

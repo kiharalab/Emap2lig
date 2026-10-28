@@ -7,9 +7,9 @@
 [![Emap2lig-Find](https://img.shields.io/badge/Emap2lig--Find-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Find)
 [![Emap2lig-Build](https://img.shields.io/badge/Emap2lig--Build-Web-4CAF50?logo=web&logoColor=white)](https://em.kiharalab.org/algorithm/Emap2lig-Build)
 [![HuggingFace Model](https://img.shields.io/badge/Model%20Weights-HuggingFace-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/KiharaLab/Emap2lig)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kiharalab/Emap2lig)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-1F6FEB)](https://deepwiki.com/kiharalab/Emap2lig)
 <br/>
-[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/)
+[![Python 3.12–3.14](https://img.shields.io/badge/Python-3.12--3.14-3776AB?logo=python&logoColor=white)](https://docs.python.org/3/)
 [![CUDA](https://img.shields.io/badge/Linux-CUDA%2012%2F13-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 [![MPS](https://img.shields.io/badge/macOS-MPS-000000?logo=apple&logoColor=white)](https://developer.apple.com/metal/pytorch/)
 
@@ -72,7 +72,7 @@ Details: [docs/web-server.md](docs/web-server.md)
 
 - **Linux**: NVIDIA GPU with **8 GB+ VRAM**, Post-Ampere (RTX 30xx / 40xx / 50xx or newer), CUDA 12 / 13 compatible driver. For 8 GB GPUs, lower the Find batch size and cap Build parallel multiplicity as shown below.
 - **macOS**: Apple Silicon or MPS-capable Mac with **macOS 13.2+** for local inference
-- **Python**: 3.12 ([uv](https://docs.astral.sh/uv/) recommended)
+- **Python**: 3.12–3.14 ([uv](https://docs.astral.sh/uv/) recommended)
 
 Emap2lig selects the accelerator by platform: Linux uses CUDA, macOS uses MPS.
 Other platforms and CPU-only inference are not supported locally.

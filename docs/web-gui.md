@@ -5,7 +5,7 @@ Build are separate tabs, matching the two-stage pipeline.
 
 ## Prerequisites
 
-- Python **3.12** and [uv](https://docs.astral.sh/uv/)
+- Python **3.12–3.14** and [uv](https://docs.astral.sh/uv/)
 - Supported local inference accelerator (same as CLI): Linux/CUDA or macOS/MPS
 
 ## Install and run

@@ -1,6 +1,6 @@
 # Installation
 
-Emap2lig targets **Python 3.12** and **uv** for dependency management.
+Emap2lig supports **Python 3.12–3.14** and uses **uv** for dependency management.
 
 ## Option A: CLI only (`uv tool install` or PyPI)
 
@@ -72,7 +72,8 @@ emap2lig-gui
 
 ## Model weights
 
-Weights and CCD data download automatically on first run to `~/.emap2lig/models/`.
+Weights and CCD data download automatically on first run to `~/.emap2lig/`
+(`models/` and `ccd/`). Set `EMAP2LIG_HOME` to use a different directory.
 See [Model weights](models.md) for files, licensing, and maintainer update steps.
 
 ## Hardware (local only)

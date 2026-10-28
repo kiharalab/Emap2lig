@@ -1,8 +1,6 @@
 import numpy as np
-from numba import njit, prange  # type: ignore
 
 
-@njit
 def add_gaussians(
     grid: np.ndarray,
     grid_indices: np.ndarray,
@@ -11,32 +9,25 @@ def add_gaussians(
     radius: float = 1.414,
 ) -> None:
     """
-    Add Gaussian distributions to the grid for each atom.
+    Mark every voxel within ``radius`` Å of an atom as 1.0 (a binary sphere).
 
     Args:
-        grid: The 3D grid to add Gaussians to.
-        grid_indices: Coordinates of atoms in grid space.
-        offsets: Offset coordinates to consider around each atom.
-        voxel_size: Voxel size array.
+        grid: The 3D grid to write into, modified in place.
+        grid_indices: Coordinates of atoms in grid space (zyx), shape (N, 3).
+        offsets: Offset coordinates to consider around each atom, shape (K, 3).
+        voxel_size: Voxel size array (xyz).
     """
-    grid_shape = np.array(grid.shape)
-    radius_sq = radius**2
+    if len(grid_indices) == 0:
+        return
 
-    for i in prange(len(grid_indices)):
-        position = grid_indices[i]
+    # (N, K, 3): candidate voxel for every atom/offset pair.
+    centers = np.floor(grid_indices[:, None, :] + offsets[None, :, :]).astype(np.int32)
+    in_bounds = np.all((centers >= 0) & (centers < np.array(grid.shape)), axis=-1)
+    shift = (centers - grid_indices[:, None, :]) * voxel_size[::-1]
+    within = np.sum(shift**2, axis=-1) <= radius**2
 
-        for offset in offsets:
-            center = np.floor(position + offset).astype(np.int32)
-
-            if (
-                0 <= center[0] < grid_shape[0]
-                and 0 <= center[1] < grid_shape[1]
-                and 0 <= center[2] < grid_shape[2]
-            ):
-                shift = (center - position) * voxel_size[::-1]
-                dist_sq = np.sum(shift**2)
-                if dist_sq <= radius_sq:
-                    grid[center[0], center[1], center[2]] = 1.0
+    hit = centers[in_bounds & within]
+    grid[hit[:, 0], hit[:, 1], hit[:, 2]] = 1.0
 
 
 def get_offsets_from_radius(label_radius: float, voxel_size: np.ndarray):

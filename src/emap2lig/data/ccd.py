@@ -16,12 +16,15 @@ from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers
 from rdkit.Chem.rdchem import Conformer, Mol
 
+from ..storage import get_ccd_dir, get_model_dir
+
 logger = logging.getLogger(__name__)
 
 _HF_REPO_ID = "KiharaLab/Emap2lig"
 _DEFAULT_CCD_DATE = "250523"
-_CCD_DIR = Path.home() / ".emap2lig" / "ccd"
-_LEGACY_CCD_DIR = Path.home() / ".emap2lig" / "models" / "ccd"
+# Resolved once at import, so EMAP2LIG_HOME applies but set_home() does not.
+_CCD_DIR = get_ccd_dir()
+_LEGACY_CCD_DIR = get_model_dir() / "ccd"
 _RCSB_CIF_URL = "https://files.rcsb.org/ligands/download/{code}.cif"
 
 Chem.SetDefaultPickleProperties(Chem.PropertyPickleOptions.AllProps)

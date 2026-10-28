@@ -23,7 +23,7 @@ src/emap2lig/                    # Core inference pipeline (~9.7k lines)
 │   ├── dataset.py               # LigandModelingDataset (579 lines, 149-dim atom features)
 │   ├── map.py                   # MRC processing: resample, normalize, crop (512 lines)
 │   ├── ccd.py                   # CCD retrieval (HuggingFace), ETKDG conformers
-│   ├── simulate.py              # Numba-accelerated density simulation for IoU scoring
+│   ├── simulate.py              # Vectorized NumPy density simulation for IoU scoring
 │   ├── const.py                 # Chemical constants (128 elements, 7 chiralities, 5 bond types)
 │   ├── transforms.py            # Coordinate augmentation, atom name encoding
 │   ├── download.py              # EMDB contour level fetching
@@ -83,7 +83,7 @@ Note: `extract-yaml` entry point was removed — use the PDB→YAML utility from
 | Map processing | `src/emap2lig/data/map.py` | Resample to 1.0 Å/voxel |
 | Diffusion sampling | `src/emap2lig/model/modules/diffusion.py` | EDM-based, 20 steps default |
 | Web GUI | `src/emap2lig/web/` | `uv run emap2lig-gui` — see `web/AGENTS.md` |
-| Model weights | `~/.emap2lig/models/` | HuggingFace `KiharaLab/Emap2lig` |
+| Model weights | `~/.emap2lig/models/` (`storage.py`, `EMAP2LIG_HOME`) | HuggingFace `KiharaLab/Emap2lig` |
 
 ## COMMANDS
 
@@ -106,14 +106,14 @@ uv run --group web emap2lig-gui
 
 ## CONVENTIONS (THIS PROJECT)
 
-- **Python**: 3.12 (uv-managed, uv_build build backend)
+- **Python**: 3.12–3.14 (uv-managed, uv_build build backend)
 - **Version source of truth**: `pyproject.toml` (`[project].version`) for the Python package; align `Emap2lig-web` `package.json` before a release. After changing the Python version, run `uv lock`. Do not hand-edit generated frontend assets for version changes — merge the CI sync PR from `shuuul/Emap2lig-web`. Only `web/frontend/dist/` is included in published packages.
 - **Commits**: do not add AI/agent co-author trailers (for example `Co-authored-by: Amp ...`) to commit messages.
 - **Formatter**: Ruff — 88 chars, double quotes, space indent
 - **Types**: Use `|` for unions, lowercase `list`/`dict`
 - **Imports**: Ruff isort (`combine-as-imports = true`, `split-on-trailing-comma = true`)
 - **Lint rules**: `E`, `F`, `B`, `UP`, `RUF` selected
-- **Lint ignores**: `E501` (line length), `B006`/`B008` (mutable defaults), `F821`/`F722` (jaxtyping annotations), `B905`, `RUF001-003` (unicode), `F841` (unused vars), `E731` (lambda), `E741` (ambiguous names)
+- **Lint ignores**: `E501` (line length), `B006`/`B008` (mutable defaults), `B905`, `RUF001-003` (unicode), `F841` (unused vars), `E731` (lambda), `E741` (ambiguous names)
 - **Precision**: `tf32` on CUDA, BF16 mixed precision
 - **Serialization**: NPZ for data objects (`NumpySerializable`), safetensors for model weights
 - **CI**: GitHub Actions for lint (PR/push) and PyPI publish (tags); frontend dist sync PRs come from `shuuul/Emap2lig-web`
@@ -123,7 +123,6 @@ uv run --group web emap2lig-gui
 - `type: ignore`: 10+ occurrences in data handling
 - Hardcoded magic numbers in distogram boundaries
 - `strict=False` in `load_state_dict()` — may hide structural drift
-- Model storage path hardcoded to `~/.emap2lig/models/` (no env var override)
 
 ## OUTPUT STRUCTURE
 

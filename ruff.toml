@@ -44,8 +44,6 @@ select = [
 # Ignore rules that are too strict or not relevant
 ignore = [
     "E501",      # Line too long (handled by formatter)
-    "F821",      # undefined-name, for numpydantic
-    "F722",      # forward-annotation-syntax-error, for numpydantic
     "B006",      # mutable argument default
     "B008",      # Do not perform function calls in argument defaults
     "B905",      # Unnecessary comparison
