@@ -2,7 +2,7 @@
 
 **Generated:** 2026-01-12 (updated 2026-05-22)
 **Branch:** main
-**Release:** 0.5.0
+**Release:** 0.6.0
 **Repository:** https://github.com/kiharalab/Emap2lig
 
 ## OVERVIEW

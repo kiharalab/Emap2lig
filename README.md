@@ -34,6 +34,16 @@ Official Emap2lig inference pipeline for finding ligand density blobs and buildi
 
 ## Latest Updates
 
+- **2026-10-28: Release v0.6.0**
+  - Leaner install: Hydra, loguru, Lightning and cuequivariance were removed.
+    Inference now runs a plain PyTorch loop with bit-identical outputs and starts
+    a few seconds faster.
+  - New package-level Python API (`from emap2lig import InferenceConfig,
+    detect_ligand_objects, run_structure_modeling`); stages raise exceptions and
+    the CLI exits with code 1 on failure. `emap2lig.main` and `load_config` are
+    gone (see the [API docs](docs/api.md)).
+  - Web GUI moves to React 19 and Mol* 5.13; the tutorial works again from a
+    repository checkout.
 - **2026-10-28: Release v0.5.0**
   - Python 3.13 and 3.14 are now supported (3.12–3.14).
   - `--emdb-id` now sets the map threshold from the EMDB-recommended contour level.
