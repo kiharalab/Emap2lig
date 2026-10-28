@@ -13,6 +13,7 @@ from pathlib import Path
 
 import yaml
 
+from ..storage import get_home, get_model_dir, set_home
 from .results_scan import (
     PREPROCESS_DIR,
     resolve_blobs_dir,
@@ -348,7 +349,7 @@ def _model_sync(
 
 
 async def download_models() -> dict[str, bool]:
-    """Download model weights via huggingface_hub to ~/.emap2lig/models/. Returns cache status."""
+    """Download model weights via huggingface_hub into the model directory. Returns cache status."""
     return await asyncio.to_thread(_download_models_sync)
 
 
@@ -367,7 +368,7 @@ def _download_models_sync() -> dict[str, bool]:
 
 
 def check_model_cache() -> dict[str, bool]:
-    """Check if models are already downloaded to ~/.emap2lig/models/."""
+    """Check if models are already downloaded to the model directory."""
     try:
         from emap2lig.main import check_weights
 
@@ -388,10 +389,9 @@ def get_cache_info() -> dict:
     Model weights live inside ``<cache_dir>/models/``.
     """
     try:
-        from emap2lig.main import MODEL_DIR, MODEL_FILES, get_model_path
+        from emap2lig.main import MODEL_FILES, get_model_path
 
-        # MODEL_DIR is ``~/.emap2lig/models`` — expose its parent as the cache root
-        cache_dir = MODEL_DIR.parent
+        cache_dir = get_home()
 
         models = []
         for key, filename in MODEL_FILES.items():
@@ -410,7 +410,7 @@ def get_cache_info() -> dict:
         return {"cache_dir": str(cache_dir), "models": models}
     except Exception as e:
         logger.warning(f"Failed to get cache info: {e}")
-        return {"cache_dir": str(Path.home() / ".emap2lig"), "models": []}
+        return {"cache_dir": str(get_home()), "models": []}
 
 
 def set_cache_dir(new_dir: str) -> dict:
@@ -418,12 +418,8 @@ def set_cache_dir(new_dir: str) -> dict:
 
     Model weights will be stored under ``<new_dir>/models/``.
     """
-    import emap2lig.main as emap_main
-
-    cache_root = Path(new_dir).expanduser().resolve()
-    model_dir = cache_root / "models"
-    model_dir.mkdir(parents=True, exist_ok=True)
-    emap_main.MODEL_DIR = model_dir
+    set_home(new_dir)
+    get_model_dir().mkdir(parents=True, exist_ok=True)
     return get_cache_info()
 
 

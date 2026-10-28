@@ -83,7 +83,7 @@ Note: `extract-yaml` entry point was removed — use the PDB→YAML utility from
 | Map processing | `src/emap2lig/data/map.py` | Resample to 1.0 Å/voxel |
 | Diffusion sampling | `src/emap2lig/model/modules/diffusion.py` | EDM-based, 20 steps default |
 | Web GUI | `src/emap2lig/web/` | `uv run emap2lig-gui` — see `web/AGENTS.md` |
-| Model weights | `~/.emap2lig/models/` | HuggingFace `KiharaLab/Emap2lig` |
+| Model weights | `~/.emap2lig/models/` (`storage.py`, `EMAP2LIG_HOME`) | HuggingFace `KiharaLab/Emap2lig` |
 
 ## COMMANDS
 
@@ -123,7 +123,6 @@ uv run --group web emap2lig-gui
 - `type: ignore`: 10+ occurrences in data handling
 - Hardcoded magic numbers in distogram boundaries
 - `strict=False` in `load_state_dict()` — may hide structural drift
-- Model storage path hardcoded to `~/.emap2lig/models/` (no env var override)
 
 ## OUTPUT STRUCTURE
 

@@ -3,6 +3,9 @@
 Repository: [huggingface.co/KiharaLab/Emap2lig](https://huggingface.co/KiharaLab/Emap2lig)
 
 Files **download automatically** on first run to `~/.emap2lig/models/` via `huggingface_hub` (network required).
+The CCD dictionary is cached in `~/.emap2lig/ccd/`. Set `EMAP2LIG_HOME` to move
+both, for example `EMAP2LIG_HOME=/data/emap2lig` stores weights in
+`/data/emap2lig/models/`.
 
 | Resource | HF file | Used by |
 |----------|---------|---------|

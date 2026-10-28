@@ -21,8 +21,8 @@ from torch.utils.data import DataLoader
 import typer
 
 import rdkit
-from huggingface_hub import hf_hub_download
 
+from emap2lig.storage import fetch_weights, get_model_dir
 from emap2lig.data.ccd import CCDFetchError, get_ccd_mol, get_conformer_from_smiles
 from emap2lig.data.const import bond_type_ids, chirality_type_ids
 from emap2lig.data.dataset import LigandModelingDataset, collate_fn
@@ -41,7 +41,6 @@ from emap2lig.data.types import (
 # ---------------------------------------------------------------------------
 # Model weights directory & metadata
 # ---------------------------------------------------------------------------
-MODEL_DIR = Path.home() / ".emap2lig" / "models"
 REPO_ID = "KiharaLab/Emap2lig"
 MODEL_FILES: dict[str, str] = {
     "detection_model": "emap2lig-find-v0.0.1.safetensors",
@@ -141,7 +140,7 @@ def _trainer_device_kwargs(device: torch.device) -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
-# Model weight helpers — download to ~/.emap2lig/models/
+# Model weight helpers — files live in storage.get_model_dir()
 # ---------------------------------------------------------------------------
 
 
@@ -157,9 +156,9 @@ def get_model_path(filename: str) -> Path:
     Returns
     -------
     Path
-        ``~/.emap2lig/models/<filename>``.
+        ``<storage root>/models/<filename>`` (default root ``~/.emap2lig``).
     """
-    return MODEL_DIR / filename
+    return get_model_dir() / filename
 
 
 def check_weights() -> dict[str, bool]:
@@ -177,7 +176,7 @@ def download_weights(
     repo_id: str = REPO_ID,
     filename: str | None = None,
 ) -> Path:
-    """Download a single weight file to ``~/.emap2lig/models/``.
+    """Download a single weight file into the model directory.
 
     If *filename* is ``None``, all known model files are downloaded.
 
@@ -192,23 +191,19 @@ def download_weights(
     Returns
     -------
     Path
-        Path to the downloaded file (or :data:`MODEL_DIR` when downloading all).
+        Path to the downloaded file (or the model directory when downloading all).
     """
-    MODEL_DIR.mkdir(parents=True, exist_ok=True)
-
     if filename is None:
         for fn in MODEL_FILES.values():
             download_weights(repo_id=repo_id, filename=fn)
-        return MODEL_DIR
+        return get_model_dir()
 
     local_path = get_model_path(filename)
     if local_path.exists():
         logger.info(f"Weights already present at {local_path}")
         return local_path
 
-    logger.info(f"Downloading {repo_id}/{filename} → {local_path}")
-    hf_hub_download(repo_id=repo_id, filename=filename, local_dir=str(MODEL_DIR))
-    return local_path
+    return fetch_weights(repo_id, filename)
 
 
 def ensure_weights() -> None:

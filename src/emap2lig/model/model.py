@@ -1,23 +1,20 @@
 from dataclasses import dataclass
-from pathlib import Path
 import sys
 from typing import Any
 
-from huggingface_hub import hf_hub_download
 from lightning.pytorch import LightningModule
 from omegaconf import DictConfig, OmegaConf
 from safetensors.torch import load_file
 import torch
 from torch import Tensor
 
+from ..storage import fetch_weights
 from .modules.conf_embedder import ConformerEmbedder
 from .modules.diffusion import AtomDiffusion, DiffusionModuleArgs
 from .modules.instance_seg import InstanceSegModule
 from .modules.pairformer import AuxiliaryModule, PairFormer
 
 from loguru import logger
-
-_MODEL_DIR = str(Path.home() / ".emap2lig" / "models")
 
 
 @dataclass
@@ -323,13 +320,7 @@ class Emap2lig(LightningModule):
 
         # Load pretrained weights from HuggingFace Hub (or local cache)
         if load_pretrained and filename:
-            local_path = Path(_MODEL_DIR) / filename
-            if local_path.exists():
-                model_path = str(local_path)
-            else:
-                model_path = hf_hub_download(
-                    repo_id=repo_id, filename=filename, local_dir=_MODEL_DIR
-                )
+            model_path = fetch_weights(repo_id, filename)
             self.load_state_dict(load_file(model_path), strict=False)
 
         self.compile_model()
