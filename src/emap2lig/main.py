@@ -285,6 +285,7 @@ def detect_ligand_objects(
         raw_obj = parse_mrc(input_path, emdb_id=emdb_id)
         unified_obj = get_unified_mrc(
             raw_obj,
+            emdb_id=emdb_id,
             min_spatial_size=detection_spatial_size,
             extended_val=cfg.extended_val,
             contour_level=cfg.contour_level,
