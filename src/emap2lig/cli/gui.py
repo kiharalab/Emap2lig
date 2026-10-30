@@ -8,6 +8,7 @@ Or:
     uv run --group web python -m emap2lig.web [OPTIONS]
 
 Options:
+    --host TEXT      Interface to bind (default: 127.0.0.1; use 0.0.0.0 for LAN)
     --port INT       Port to serve on (default: 40427)
     --no-browser     Don't auto-open the browser
 
@@ -85,6 +86,12 @@ def _open_browser(url: str, delay: float = 1.5) -> None:
 
 @cli.command()
 def main(
+    host: Annotated[
+        str,
+        typer.Option(
+            help="Interface to bind, e.g. 127.0.0.1 (default, local only) or 0.0.0.0 (LAN).",
+        ),
+    ] = "127.0.0.1",
     port: Annotated[
         int,
         typer.Option(help="Port to serve on."),
@@ -95,8 +102,8 @@ def main(
     ] = False,
 ) -> None:
     """Launch the Emap2lig web GUI."""
-    host = "127.0.0.1"
-    url = f"http://{host}:{port}"
+    display_host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
+    url = f"http://{display_host}:{port}"
 
     # ── 1. Frontend build ────────────────────────────────────────
     print("[1/4] Checking frontend...")

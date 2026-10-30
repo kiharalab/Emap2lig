@@ -43,6 +43,7 @@ uv run --group web emap2lig-gui --no-browser
 
 | Option | Description |
 |--------|-------------|
+| `--host TEXT` | Interface to bind (default: `127.0.0.1`; use `0.0.0.0` for LAN access) |
 | `--port INT` | Port (default: `40427`) |
 | `--no-browser` | Do not open a browser tab |
 
@@ -61,6 +62,18 @@ uv run python scripts/sync_frontend.py 0.7.0    # sync 0.7.0, then pin it
 The script verifies the tarball's npm integrity hash and replaces `frontend/dist/`
 only if the download is valid. The release workflow runs it before `uv build`, so
 commit `.webui-version` (not `dist/`) when updating the UI.
+
+## Deployment notes
+
+- **LAN / remote access**: `uv run --group web emap2lig-gui --host 0.0.0.0` binds all
+  interfaces. Keep `127.0.0.1` (the default) when only local use is intended.
+- **Transfer compression**: API and file responses are gzip-compressed when the client
+  sends `Accept-Encoding: gzip` (the Mol\* bundle shrinks from ~3.0 MB to ~0.9 MB).
+  Behind a reverse proxy that already compresses, the proxy sees `Content-Encoding:
+  gzip` and will not double-compress.
+- **Caching**: hashed assets under `/assets/` are served with
+  `Cache-Control: public, max-age=31536000, immutable`; `index.html` is always
+  revalidated, so upgrades take effect on the next page load.
 
 ## Workflow
 

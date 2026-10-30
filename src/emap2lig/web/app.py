@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import importlib.metadata
+import re
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 
 from .routers import detect, download, files, jobs, model
 
@@ -18,6 +21,26 @@ _FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
 # Browsers must revalidate index.html after frontend dist rebuilds so script
 # tags point at the current hashed bundles under /assets/.
 _SPA_INDEX_CACHE_HEADERS = {"Cache-Control": "no-cache"}
+
+# Hashed asset filenames embed a content hash (assets/<name>-<hash>.js), so
+# their URL changes whenever the content changes and they can be cached
+# aggressively. Unhashed public/ files (e.g. favicons) get a daily refresh.
+_HASHED_ASSET_RE = re.compile(r"-[A-Za-z0-9_-]{8,}\.(?:js|css)$")
+
+
+class _CachedAssets(StaticFiles):
+    """StaticFiles that sends long-lived cache headers for hashed assets."""
+
+    async def get_response(self, path: str, scope: Scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            if _HASHED_ASSET_RE.search(path):
+                response.headers["Cache-Control"] = (
+                    "public, max-age=31536000, immutable"
+                )
+            else:
+                response.headers["Cache-Control"] = "public, max-age=86400"
+        return response
 
 
 def _resolve_frontend_dist_file(dist_root: Path, full_path: str) -> Path | None:
@@ -68,6 +91,12 @@ def create_app() -> FastAPI:
         version=_package_version(),
     )
 
+    # Compression — gzip for API JSON and file responses when the client sends
+    # `Accept-Encoding: gzip` ( Mol* bundle ~3MB -> ~850KB; cif/csv shrink a lot).
+    # Behind a reverse proxy that compresses, this is simply skipped via the
+    # proxy not forwarding Accept-Encoding, or costs one pass of zlib.
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
+
     # CORS — allow the Vite dev server (port 5173) and any localhost
     app.add_middleware(
         CORSMiddleware,
@@ -103,7 +132,7 @@ def create_app() -> FastAPI:
         if assets.is_dir():
             app.mount(
                 "/assets",
-                StaticFiles(directory=str(assets)),
+                _CachedAssets(directory=str(assets)),
                 name="frontend-assets",
             )
 

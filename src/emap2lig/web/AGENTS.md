@@ -51,6 +51,8 @@ uv run python scripts/sync_frontend.py
 - Never hand-edit `frontend/dist/`; change `.webui-version` and run `scripts/sync_frontend.py`.
 - Do not inline version into generated JS chunks; assets are content-hashed, and index.html carries `<meta name="emap2lig-version">`.
 - **Packaging**: only `frontend/dist/` is published (wheel/sdist); sync it before `uv build`.
+- **Transfer**: `GZipMiddleware` (level 6, min 1KB) compresses API/file responses;
+  `/assets/` responses carry immutable cache headers for hashed filenames. Keep both.
 
 ## FRONTEND SYNC
 
