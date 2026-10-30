@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/kiharalab/Emap2lig/compare/v0.6.0...v0.7.0) (2026-10-30)
+
+
+### Features
+
+* **web:** fetch prebuilt frontend from npm instead of tracking dist ([afc8820](https://github.com/kiharalab/Emap2lig/commit/afc8820903a0bdc17ae0379e0b5086510a11cb88))
+
 ## [0.6.0](https://github.com/kiharalab/Emap2lig/compare/v0.5.0...v0.6.0) (2026-10-28)
 
 
