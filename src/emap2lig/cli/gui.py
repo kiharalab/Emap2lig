@@ -12,8 +12,7 @@ Options:
     --no-browser     Don't auto-open the browser
 
 What it does:
-    1. Checks that the pre-built frontend/dist/ is present (no npm required;
-       the frontend source lives in shuuul/Emap2lig-web)
+    1. Checks that the frontend/dist/ bundle is present (no npm required)
     2. Frees the chosen port if something stale is occupying it
     3. Opens http://localhost:<port> in the default browser
     4. Starts the FastAPI/Uvicorn server
@@ -103,13 +102,12 @@ def main(
     print("[1/4] Checking frontend...")
     if not DIST_DIR.is_dir():
         print(
-            f"ERROR: pre-built frontend not found at {DIST_DIR}.\n"
-            "  Build it from shuuul/Emap2lig-web "
-            "(EMAP2LIG_DIST_DIR=<this path> npm run build).",
+            f"ERROR: web UI bundle not found at {DIST_DIR}.\n"
+            "  Fetch it from npm: uv run python scripts/sync_frontend.py",
             file=sys.stderr,
         )
         sys.exit(1)
-    print("  Using pre-built frontend (emap2lig/web/frontend/dist/).")
+    print("  Using web UI bundle (emap2lig/web/frontend/dist/).")
     print()
 
     # ── 2. Free port ─────────────────────────────────────────────

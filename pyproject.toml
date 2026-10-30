@@ -42,9 +42,11 @@ fragment-detect = "emap2lig.cli.frag:app"
 emap2lig-gui = "emap2lig.cli.gui:cli"
 
 [tool.uv.build-backend]
-# Frontend source lives in shuuul/Emap2lig-web; only frontend/dist/ is in this repo.
-source-exclude = ["**/AGENTS.md", "**/frontend/.gitignore"]
-wheel-exclude = ["**/AGENTS.md", "**/frontend/.gitignore"]
+# web/frontend/dist/ (the Web UI bundle) is gitignored and fetched from npm by
+# scripts/sync_frontend.py; uv_build still packages it when present, so run the
+# script before `uv build`. The UI source is not distributed.
+source-exclude = ["**/AGENTS.md"]
+wheel-exclude = ["**/AGENTS.md"]
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14"]

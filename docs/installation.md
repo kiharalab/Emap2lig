@@ -53,10 +53,11 @@ uv run fragment-detect --help
 
 ### Web GUI dependencies
 
-The GUI needs the `web` dependency group. The repository ships a pre-built
-`src/emap2lig/web/frontend/dist/`; **Node.js is not required** to start the server.
+The GUI needs the `web` dependency group and the web UI bundle. The bundle is not
+tracked in git; fetch it from npm once (**Node.js is not required**):
 
 ```bash
+uv run python scripts/sync_frontend.py
 uv sync --group web
 uv run --group web emap2lig-gui
 ```

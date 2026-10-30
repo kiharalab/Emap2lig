@@ -24,11 +24,11 @@ src/emap2lig/web/
 ├── state.py
 ├── results_scan.py
 └── frontend/
-    └── dist/              # Pre-built assets (source in shuuul/Emap2lig-web)
+    └── dist/              # Pre-built assets (from the emap2lig-webui npm package)
 ```
 
-Frontend React source: private repo **shuuul/Emap2lig-web**. Component layout mirrors
-the former in-tree `frontend/src/` tree (`App.tsx`, `components/`, `lib/api.ts`, etc.).
+The web UI source is not distributed; `dist/` is gitignored and fetched from the npm
+package `emap2lig-webui` at the version pinned in `.webui-version`.
 
 ## API Endpoints
 
@@ -67,13 +67,8 @@ active jobs but results on disk remain accessible via the Visualization tab.
 # Backend dev (hot reload)
 uv run --group web fastapi dev emap2lig.web.app:app
 
-# Frontend dev — clone shuuul/Emap2lig-web (private), then:
-cd Emap2lig-web
-npm install
-npm run dev
-
-# Build dist into Emap2Lig checkout
-EMAP2LIG_DIST_DIR=/path/to/Emap2Lig/src/emap2lig/web/frontend/dist npm run build
+# Fetch frontend/dist/ from npm (required in a checkout)
+uv run python scripts/sync_frontend.py
 ```
 
 ## Troubleshooting
@@ -81,7 +76,7 @@ EMAP2LIG_DIST_DIR=/path/to/Emap2Lig/src/emap2lig/web/frontend/dist npm run build
 | Issue | Solution |
 |-------|----------|
 | Port already in use | `cli.py` auto-frees the port; or use `--port` |
-| Frontend not loading | Ensure `frontend/dist/` exists; rebuild from shuuul/Emap2lig-web |
+| Frontend not loading | Ensure `frontend/dist/` exists; run `uv run python scripts/sync_frontend.py` |
 | Model download fails | Check internet; weights stored in `~/.emap2lig/models/` |
 | Job stuck at pending | Restart server; check GPU availability |
 | Mol* shows nothing | Verify map at correct contour level; check file paths |

@@ -45,7 +45,7 @@ src/emap2lig/                    # Core inference pipeline
 │   ├── layers/                  # Primitive operations (see layers/AGENTS.md)
 │   ├── modules/                 # Diffusion, conformer embedder, pairformer, instance seg
 │   └── seg/                     # SlidingWindowSegmenter → MUNetRegSeg / FragmentRegSeg
-└── web/                         # Web GUI (FastAPI + pre-built frontend/dist/) — see web/AGENTS.md
+└── web/                         # Web GUI (FastAPI + frontend/dist/ from npm) — see web/AGENTS.md
 
 examples/                        # Sample input files (EMD-30556, EMD-7783)
 ```
@@ -105,14 +105,14 @@ uv run ruff check --fix && uv run ruff format
 # Pre-commit (ruff, ruff-format, pyupgrade, trailing-whitespace, uv-lock)
 prek --all-files
 
-# Run web GUI (uses pre-built frontend/dist/ on http://localhost:40427)
+# Run web GUI (needs frontend/dist/: run scripts/sync_frontend.py once; http://localhost:40427)
 uv run --group web emap2lig-gui
 ```
 
 ## CONVENTIONS (THIS PROJECT)
 
 - **Python**: 3.12–3.14 (uv-managed, uv_build build backend)
-- **Version source of truth**: `pyproject.toml` (`[project].version`) for the Python package; align `Emap2lig-web` `package.json` before a release. After changing the Python version, run `uv lock`. Do not hand-edit generated frontend assets for version changes — merge the CI sync PR from `shuuul/Emap2lig-web`. Only `web/frontend/dist/` is included in published packages.
+- **Version source of truth**: `pyproject.toml` (`[project].version`) for the Python package. After changing the Python version, run `uv lock`. The web UI bundle is pinned separately in `.webui-version` (npm `emap2lig-webui`); `web/frontend/dist/` is gitignored and fetched by `scripts/sync_frontend.py` (CI runs it before `uv build`), never edited by hand. Only `web/frontend/dist/` of the frontend is included in published packages.
 - **Commits**: do not add AI/agent co-author trailers (for example `Co-authored-by: Amp ...`) to commit messages.
 - **Formatter**: Ruff — 88 chars, double quotes, space indent
 - **Types**: Use `|` for unions, lowercase `list`/`dict`
@@ -121,7 +121,7 @@ uv run --group web emap2lig-gui
 - **Lint ignores**: `E501` (line length), `B006`/`B008` (mutable defaults), `B905`, `RUF001-003` (unicode), `F841` (unused vars), `E731` (lambda), `E741` (ambiguous names)
 - **Precision**: FP32 inference (TF32 matmuls on CUDA via `utils/runtime.py`), no autocast
 - **Serialization**: NPZ for data objects (`NumpySerializable`), safetensors for model weights
-- **CI**: GitHub Actions for lint (PR/push) and PyPI publish (tags); frontend dist sync PRs come from `shuuul/Emap2lig-web`
+- **CI**: GitHub Actions for lint (PR/push) and PyPI publish (tags)
 
 ## ANTI-PATTERNS (THIS PROJECT)
 

@@ -14,8 +14,8 @@ metadata:
   version: "0.3.4"
 compatibility: >
   Requires Python 3.12–3.14, uv, and a CUDA-capable GPU for local inference.
-  Web GUI: pip install "emap2lig[web]" or clone + uv sync --group web
-  (pre-built dist/, no Node.js for normal use).
+  Web GUI: pip install "emap2lig[web]", or clone + uv run python scripts/sync_frontend.py
+  + uv sync --group web (frontend fetched from npm, no Node.js needed).
   Model weights download automatically from HuggingFace Hub on first run (network required).
 ---
 
@@ -127,8 +127,8 @@ This runs the lightweight FragmentRegSeg model and saves probability maps.
 
 ### Starting the GUI
 
-The Web GUI ships with pre-built `frontend/dist/`. Install the `web` extra from
-PyPI or clone the repository for development.
+The Web GUI bundle is installed with the PyPI wheel. In a clone, fetch it from npm once
+with `uv run python scripts/sync_frontend.py`.
 
 ```bash
 # PyPI
@@ -136,6 +136,7 @@ pip install "emap2lig[web]"
 emap2lig-gui
 
 # Clone
+uv run python scripts/sync_frontend.py
 uv sync --group web
 uv run --group web emap2lig-gui
 ```

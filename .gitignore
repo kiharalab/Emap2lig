@@ -173,3 +173,6 @@ tasks/
 jobs_output/
 output*/
 outputs/
+
+# Web UI bundle, fetched from npm by scripts/sync_frontend.py (not tracked)
+src/emap2lig/web/frontend/dist/

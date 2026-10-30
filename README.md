@@ -171,8 +171,9 @@ Full flags and examples: [docs/cli.md](docs/cli.md) · Install options: [docs/in
 
 #### Web GUI
 
-Install with the `web` extra (PyPI) or clone the repo. Pre-built frontend is
-included; Node.js is not required for normal use.
+Install with the `web` extra (PyPI) or clone the repo. The wheel bundles the frontend;
+in a clone, run `uv run python scripts/sync_frontend.py` once to fetch it from npm
+(Node.js is not required).
 
 ```bash
 # PyPI

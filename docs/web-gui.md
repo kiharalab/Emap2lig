@@ -46,32 +46,21 @@ uv run --group web emap2lig-gui --no-browser
 | `--port INT` | Port (default: `40427`) |
 | `--no-browser` | Do not open a browser tab |
 
-## Frontend development
+## Frontend bundle
 
-React source lives in the private repository **shuuul/Emap2lig-web** (not in this repo).
-This repo only ships pre-built `frontend/dist/`.
-
-```bash
-# Clone frontend (maintainers — private repo)
-git clone git@github.com:shuuul/Emap2lig-web.git
-cd Emap2lig-web
-npm install
-
-# Terminal 1 — backend
-uv run --group web fastapi dev emap2lig.web.app:app
-
-# Terminal 2 — Vite (proxies /api → localhost:40427)
-npm run dev
-```
-
-Build into a local Emap2Lig checkout:
+The web UI source is not distributed. `frontend/dist/` is gitignored; wheels and
+sdists include it, and a source checkout fetches it from the
+[`emap2lig-webui`](https://www.npmjs.com/package/emap2lig-webui) npm package at the
+version pinned in `.webui-version`:
 
 ```bash
-EMAP2LIG_DIST_DIR=/path/to/Emap2Lig/src/emap2lig/web/frontend/dist npm run build
+uv run python scripts/sync_frontend.py          # sync the pinned version
+uv run python scripts/sync_frontend.py 0.7.0    # sync 0.7.0, then pin it
 ```
 
-Pushes to `Emap2lig-web` `main` open an automated PR here updating `frontend/dist/`.
-Merge that PR before tagging a PyPI release.
+The script verifies the tarball's npm integrity hash and replaces `frontend/dist/`
+only if the download is valid. The release workflow runs it before `uv build`, so
+commit `.webui-version` (not `dist/`) when updating the UI.
 
 ## Workflow
 

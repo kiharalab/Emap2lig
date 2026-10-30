@@ -23,6 +23,10 @@ prepare releases from Conventional Commit history.
    Release.
 6. The tag-triggered **Publish** workflow builds distributions, uploads them to
    the GitHub Release, and publishes to PyPI.
+7. The web UI bundle is not part of release-please: `publish.yml` fetches
+   `emap2lig-webui@<.webui-version>` from npm before `uv build`. To ship a newer UI,
+   run `scripts/sync_frontend.py <version>` and merge the updated `.webui-version`
+   beforehand (see [Web GUI](web-gui.md#frontend-bundle)).
 
 ## Writing release-friendly commits
 

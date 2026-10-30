@@ -47,6 +47,9 @@ jobs:
             exit 1
           fi
 
+      - name: Fetch web UI bundle from npm
+        run: python3 scripts/sync_frontend.py
+
       - name: Build distributions
         run: uv build
 
