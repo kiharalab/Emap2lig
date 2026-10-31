@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import sys
 import threading
 from pathlib import Path
@@ -26,6 +27,56 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+# Structured progress: parse pipeline output lines / tqdm bars into
+# {"current", "total", "unit"} so the UI can show a determinate bar.
+_TQDM_RE = re.compile(r"(\d+)%\|[^|]*\|\s*(\d+)/(\d+)")
+_DETECT_CANDIDATES_RE = re.compile(r"Found (\d+) objects in the ligand mask")
+_DETECT_BLOB_RE = re.compile(r"Saved blob (\d+) to")
+_DETECT_DONE_RE = re.compile(r"Saved (\d+) blobs to")
+_MODEL_COMBOS_RE = re.compile(r"Running inference on (\d+) combinations")
+
+
+def _parse_progress(line: str, job: Job) -> dict | None:
+    """Extract structured progress from one pipeline output line."""
+    prev = job.progress_detail or {}
+    m = _TQDM_RE.search(line)
+    if m:
+        # tqdm bar, e.g. "Predicting:  45%|████ | 18/40 [..]" — modeling runs
+        # one batch per blob-ligand combination.
+        unit = "combinations" if "Predicting" in line else "steps"
+        return {
+            "current": int(m.group(2)),
+            "total": int(m.group(3)),
+            "unit": unit,
+        }
+    m = _MODEL_COMBOS_RE.search(line)
+    if m:
+        return {"current": 0, "total": int(m.group(1)), "unit": "combinations"}
+    m = _DETECT_CANDIDATES_RE.search(line)
+    if m:
+        return {
+            "current": 0,
+            "total": int(m.group(1)),
+            "unit": "blob candidates",
+        }
+    m = _DETECT_BLOB_RE.search(line)
+    if m:
+        # Candidate count (upper bound) was announced earlier.
+        return {
+            "current": int(m.group(1)),
+            "total": prev.get("total") or int(m.group(1)),
+            "unit": "blobs",
+        }
+    m = _DETECT_DONE_RE.search(line)
+    if m:
+        return {
+            "current": int(m.group(1)),
+            "total": int(m.group(1)),
+            "unit": "blobs",
+        }
+    return None
+
+
 class _JobLogHandler(logging.Handler):
     """Logging handler that forwards ``emap2lig`` log messages to ``job.progress``."""
 
@@ -37,6 +88,7 @@ class _JobLogHandler(logging.Handler):
         line = record.getMessage().strip()
         if line:
             self.job.progress = line
+            self.job.progress_detail = _parse_progress(line, self.job) or self.job.progress_detail
 
 
 class _TeeWriter:
@@ -71,6 +123,7 @@ class _TeeWriter:
         line = line.strip()
         if line:
             self.job.progress = line
+            self.job.progress_detail = _parse_progress(line, self.job) or self.job.progress_detail
 
     def flush(self) -> None:
         if hasattr(self.original, "flush"):

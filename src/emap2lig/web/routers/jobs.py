@@ -14,6 +14,7 @@ from ..schemas import (
     BlobResultResponse,
     ConformerResponse,
     JobResponse,
+    ProgressDetailResponse,
     ResultsResponse,
 )
 from ..state import Job, _jobs, get_job
@@ -32,6 +33,11 @@ async def get_job_status(job_id: str):
         status=job.status,
         created_at=job.created_at,
         progress=job.progress,
+        progress_detail=(
+            ProgressDetailResponse(**job.progress_detail)
+            if job.progress_detail
+            else None
+        ),
         error=job.error,
         output_dir=str(job.output_dir),
         num_blobs=job.num_blobs,

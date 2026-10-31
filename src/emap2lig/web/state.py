@@ -60,6 +60,9 @@ class Job:
     created_at: datetime
     output_dir: Path
     progress: str = ""
+    # Structured progress parsed from pipeline output, e.g.
+    # {"current": 18, "total": 40, "unit": "combinations"}; None when unknown.
+    progress_detail: dict | None = None
     error: str | None = None
 
     # Stage 1 outputs

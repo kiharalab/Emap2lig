@@ -46,12 +46,19 @@ class BlobResultResponse(BaseModel):
     conformers: list[ConformerResponse] = Field(default_factory=list)
 
 
+class ProgressDetailResponse(BaseModel):
+    current: int
+    total: int
+    unit: str  # "blobs" | "combinations" | "blob candidates"
+
+
 class JobResponse(BaseModel):
     id: str
     type: str
     status: str
     created_at: datetime
     progress: str
+    progress_detail: ProgressDetailResponse | None = None
     error: str | None = None
     output_dir: str | None = None
     num_blobs: int | None = None
