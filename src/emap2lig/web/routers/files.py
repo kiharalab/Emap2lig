@@ -172,7 +172,7 @@ _MIME = {
     ".npz": "application/octet-stream",
     ".cif": "chemical/x-mmcif",
     ".csv": "text/csv",
-    ".gz": "application/octet-stream",  # serve as raw binary so browsers don't interfere
+    ".gz": "application/gzip",  # truthful type; gzip middleware skips recompression
     ".yaml": "text/yaml",
     ".yml": "text/yaml",
 }
