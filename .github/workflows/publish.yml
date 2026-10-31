@@ -1,19 +1,10 @@
 name: Publish
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish, for example v0.4.3"
-        required: true
-        type: string
-  workflow_call:
-    inputs:
-      tag:
-        description: "Release tag to publish, for example v0.4.3"
+        description: "Release tag to publish, for example v0.7.1"
         required: true
         type: string
 
@@ -24,12 +15,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     env:
-      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      RELEASE_TAG: ${{ inputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.tag }}
 
       - uses: astral-sh/setup-uv@v10.3.2
 
@@ -38,7 +29,7 @@ jobs:
           tag="$RELEASE_TAG"
           expected="${tag#v}"
           actual="$(grep -E '^version = ' pyproject.toml | sed -E 's/^version = "(.*)"/\1/')"
-          if [ -z "$tag" ] || [ "$tag" = "$GITHUB_REF" ]; then
+          if [ -z "$tag" ]; then
             echo "Release tag was not provided"
             exit 1
           fi
@@ -85,7 +76,7 @@ jobs:
                 --method POST \
                 "/repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
                 -f tag_name="$tag" \
-                -f target_commitish="$GITHUB_SHA" \
+                -f target_commitish="$tag" \
                 --jq .body
               echo ""
               echo "## Install"

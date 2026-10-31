@@ -121,7 +121,7 @@ uv run --group web emap2lig-gui
 - **Lint ignores**: `E501` (line length), `B006`/`B008` (mutable defaults), `B905`, `RUF001-003` (unicode), `F841` (unused vars), `E731` (lambda), `E741` (ambiguous names)
 - **Precision**: FP32 inference (TF32 matmuls on CUDA via `utils/runtime.py`), no autocast
 - **Serialization**: NPZ for data objects (`NumpySerializable`), safetensors for model weights
-- **CI**: GitHub Actions for lint (PR/push) and PyPI publish (tags)
+- **CI**: GitHub Actions for lint (PR/push) and PyPI publish (`workflow_dispatch` on **Publish**)
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
