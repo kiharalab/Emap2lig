@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import gzip
 import io
 import os
+import shutil
 import tarfile
 from pathlib import Path
 
@@ -17,6 +19,67 @@ from ..services import JOBS_ROOT
 from ..state import get_job
 
 router = APIRouter(prefix="/api", tags=["files"])
+
+# Files above this size are served from a cached .gz sibling (built once) with
+# a truthful Content-Encoding header; the browser transparently decompresses.
+_GZIPPABLE_MIN_BYTES = 1_000_000
+_GZIPPABLE_SUFFIXES = {".mrc", ".map", ".npz", ".cif", ".csv"}
+
+
+def _gzip_cached(target: Path) -> tuple[Path, int] | None:
+    """Return ``(gz_path, original_size)`` for a large compressible file.
+
+    The .gz sibling is cached under the system temp directory (keyed by path
+    and mtime) so user output directories are not polluted. Returns ``None``
+    for small files, already-compressed files, or when the cache cannot be
+    written.
+    """
+    try:
+        original_size = target.stat().st_size
+        if (
+            target.suffix.lower() == ".gz"
+            or original_size < _GZIPPABLE_MIN_BYTES
+            or target.suffix.lower() not in _GZIPPABLE_SUFFIXES
+        ):
+            return None
+        import hashlib
+        import tempfile
+
+        cache_root = Path(tempfile.gettempdir()) / "emap2lig-gzcache"
+        cache_root.mkdir(parents=True, exist_ok=True)
+        key = hashlib.sha1(
+            f"{target}|{target.stat().st_mtime_ns}".encode()
+        ).hexdigest()[:24]
+        gz = cache_root / f"{target.stem}-{key}.gz"
+        if not gz.exists():
+            tmp = gz.with_name(gz.name + f".tmp.{os.getpid()}")
+            with open(target, "rb") as src, gzip.open(tmp, "wb", compresslevel=1) as dst:
+                shutil.copyfileobj(src, dst, length=256 * 1024)
+            tmp.replace(gz)
+        return gz, original_size
+    except OSError:
+        return None
+
+
+def _served_file_response(
+    target: Path, media_type: str, filename: str | None = None
+) -> FileResponse:
+    """FileResponse with gzip cache + progress-friendly headers when applicable."""
+    cached = _gzip_cached(target)
+    if cached is None:
+        return FileResponse(
+            path=target, media_type=media_type, filename=filename
+        )
+    gz_path, original_size = cached
+    return FileResponse(
+        path=gz_path,
+        media_type=media_type,
+        filename=filename,
+        headers={
+            "Content-Encoding": "gzip",
+            "X-Original-Size": str(original_size),
+        },
+    )
 
 
 def _allowed_roots() -> list[Path]:
@@ -162,7 +225,7 @@ async def serve_server_file(
 
     suffix = target.suffix.lower()
     media_type = _MIME.get(suffix, "application/octet-stream")
-    return FileResponse(path=target, media_type=media_type, filename=target.name)
+    return _served_file_response(target, media_type, filename=target.name)
 
 
 # MIME types for structural biology formats
@@ -202,11 +265,7 @@ async def serve_file(job_id: str, file_path: str):
 
     suffix = full_path.suffix.lower()
     media_type = _MIME.get(suffix, "application/octet-stream")
-    return FileResponse(
-        path=full_path,
-        media_type=media_type,
-        filename=full_path.name,
-    )
+    return _served_file_response(full_path, media_type, filename=full_path.name)
 
 
 @router.get("/load-results")
