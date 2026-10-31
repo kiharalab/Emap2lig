@@ -110,7 +110,8 @@ def main(
     if not DIST_DIR.is_dir():
         print(
             f"ERROR: web UI bundle not found at {DIST_DIR}.\n"
-            "  Fetch it from npm: uv run python scripts/sync_frontend.py",
+            "  Fetch it from npm: uv run python scripts/sync_frontend.py\n"
+            "  Or copy a local checkout: uv run python scripts/sync_frontend.py --local",
             file=sys.stderr,
         )
         sys.exit(1)

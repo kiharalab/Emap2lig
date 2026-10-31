@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from ...layout import OutputLayout
 from ..results_scan import scan_blobs, scan_results
@@ -14,40 +15,47 @@ from ..schemas import (
     BlobResultResponse,
     ConformerResponse,
     JobResponse,
-    ProgressDetailResponse,
+    JobSummaryResponse,
     ResultsResponse,
 )
-from ..state import Job, _jobs, get_job
+from ..services import job_to_response, job_to_summary
+from ..state import Job, _jobs, get_job, list_jobs
 
 router = APIRouter(prefix="/api", tags=["jobs"])
 
 
+def _queue_position(request: Request, job_id: str) -> int | None:
+    """Return the 1-based queue position of *job_id*, or ``None``."""
+    return request.app.state.runner.queue_position(job_id)
+
+
+@router.get("/jobs", response_model=list[JobSummaryResponse])
+async def list_all_jobs(request: Request):
+    """Return every in-memory job (newest first)."""
+    jobs = sorted(list_jobs(), key=lambda j: j.created_at, reverse=True)
+    return [job_to_summary(j, _queue_position(request, j.id)) for j in jobs]
+
+
 @router.get("/jobs/{job_id}", response_model=JobResponse)
-async def get_job_status(job_id: str):
+async def get_job_status(job_id: str, request: Request):
     job = get_job(job_id)
     if job is None:
         raise HTTPException(404, f"Job {job_id} not found")
-    return JobResponse(
-        id=job.id,
-        type=job.type,
-        status=job.status,
-        created_at=job.created_at,
-        progress=job.progress,
-        progress_detail=(
-            ProgressDetailResponse(**job.progress_detail)
-            if job.progress_detail
-            else None
-        ),
-        error=job.error,
-        output_dir=str(job.output_dir),
-        num_blobs=job.num_blobs,
-        detect_job_id=job.detect_job_id,
-        unified_map_url=(
-            f"/api/files/{job.id}/{job.unified_map_path}"
-            if job.unified_map_path
-            else None
-        ),
-    )
+    return job_to_response(job, _queue_position(request, job.id))
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=JobResponse)
+async def cancel_job(job_id: str, request: Request):
+    """Cancel a queued job immediately, or a running job at the next progress event."""
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(404, f"Job {job_id} not found")
+    if not request.app.state.runner.cancel(job):
+        raise HTTPException(
+            400,
+            f"Job {job_id} cannot be cancelled (status={job.status})",
+        )
+    return job_to_response(job, _queue_position(request, job.id))
 
 
 @router.get("/jobs/{job_id}/blobs", response_model=BlobListResponse)
@@ -111,8 +119,6 @@ _TUTORIAL_DIR = Path(__file__).resolve().parents[4] / "examples" / "tutorial_out
 @router.post("/tutorial/create-jobs")
 async def create_tutorial_jobs():
     """Create virtual completed detect + model jobs from the tutorial output."""
-    from datetime import datetime, UTC
-
     if not _TUTORIAL_DIR.exists():
         raise HTTPException(404, f"Tutorial output not found at {_TUTORIAL_DIR}")
 

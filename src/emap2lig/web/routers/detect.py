@@ -8,7 +8,7 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 
 from ..schemas import JobCreateResponse
 from ..services import (
@@ -58,7 +58,7 @@ def _default_output_dir(root: Path, map_filename: str) -> Path:
 
 @router.post("/detect", response_model=JobCreateResponse)
 async def start_detection(
-    background_tasks: BackgroundTasks,
+    request: Request,
     input_map: UploadFile | None = None,
     input_map_path: str | None = Form(None),
     gpu: str = Form("0"),
@@ -163,5 +163,5 @@ async def start_detection(
         contour_level=contour_level,
     )
 
-    background_tasks.add_task(run_detection, job)
+    request.app.state.runner.submit(job, lambda: run_detection(job))
     return JobCreateResponse(job_id=job.id)

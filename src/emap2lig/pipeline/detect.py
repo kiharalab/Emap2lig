@@ -18,6 +18,7 @@ from ..data.types import DensityObject, MapObject
 from ..errors import NoBlobsDetectedError, TooManyBlobsError
 from ..layout import OutputLayout
 from ..model.pretrained import build_detection_model
+from ..progress import ProgressCallback, emit
 from ..utils.device import resolve_device
 from ..utils.runtime import configure_runtime
 from .preprocess import load_unified_map
@@ -33,12 +34,20 @@ def detect_ligand_objects(
     output_dir: Path | str,
     cfg: InferenceConfig,
     emdb_id: str | None = None,
+    on_progress: ProgressCallback | None = None,
 ) -> Path:
     """Detect ligand density blobs in a cryo-EM map (stage 1).
 
     Writes the unified map, per-label probability maps and masks, and one
     ``blob_<i>.npz`` / ``mask_<i>.mrc`` pair per blob.  Label maps already in
     *output_dir* are reused.
+
+    Args:
+        input_map: Cryo-EM map path.
+        output_dir: Output directory of this run.
+        cfg: Runtime options.
+        emdb_id: Optional EMDB accession used for contour lookup.
+        on_progress: Optional structured-progress callback.
 
     Returns:
         The ``find_blobs/`` directory.
@@ -47,22 +56,26 @@ def detect_ligand_objects(
         NoBlobsDetectedError: The ligand mask has no blob of usable size.
         TooManyBlobsError: More than ``MAX_BLOBS`` blobs were found (they are
             still saved).
+        emap2lig.errors.JobCancelledError: Propagated from *on_progress*.
     """
     layout = OutputLayout(Path(output_dir))
     configure_runtime()
     device = resolve_device(cfg.gpu)
 
+    emit(on_progress, "preprocess", 0, 1, f"Loading map from {input_map}")
     unified = load_unified_map(input_map, cfg, emdb_id, save_to=layout.unified_map)
+    emit(on_progress, "preprocess", 1, 1, "Map resampled and normalized")
     if all(
         layout.label_map(label).exists() and layout.label_mask(label).exists()
         for label in DETECTION_LABELS
     ):
         logger.info(f"Reusing detection maps under {layout.find_maps}")
         ligand_mask = parse_mrc(layout.label_mask("ligand"))
+        emit(on_progress, "segment", 1, 1, "Reusing existing detection maps")
     else:
-        ligand_mask = _segment(unified, layout, cfg, device)
+        ligand_mask = _segment(unified, layout, cfg, device, on_progress)
 
-    num_blobs = _split_blobs(ligand_mask, unified, layout)
+    num_blobs = _split_blobs(ligand_mask, unified, layout, on_progress)
     if num_blobs == 0:
         raise NoBlobsDetectedError("No ligand blobs detected")
     if num_blobs > MAX_BLOBS:
@@ -74,16 +87,22 @@ def detect_ligand_objects(
 
 
 def _segment(
-    unified: MapObject, layout: OutputLayout, cfg: InferenceConfig, device
+    unified: MapObject,
+    layout: OutputLayout,
+    cfg: InferenceConfig,
+    device,
+    on_progress: ProgressCallback | None = None,
 ) -> MapObject:
     """Run the detection model; save non-empty label maps; return the ligand mask."""
     logger.info("Initializing Emap2lig detection model")
+    emit(on_progress, "segment", 0, None, "Loading detection model")
     model = build_detection_model()
     probabilities, binary, thresholds = model.segment(
         unified.grid_data,
         roi_size=DETECTION_SPATIAL_SIZE,
         batch_size=cfg.detection_batch_size,
         device=device,
+        on_progress=on_progress,
     )
     logger.info(f"Ligand detection threshold: {thresholds['ligand']:.6f}")
 
@@ -110,7 +129,10 @@ def _segment(
 
 
 def _split_blobs(
-    ligand_mask: MapObject, unified: MapObject, layout: OutputLayout
+    ligand_mask: MapObject,
+    unified: MapObject,
+    layout: OutputLayout,
+    on_progress: ProgressCallback | None = None,
 ) -> int:
     """Save each 26-connected component of *ligand_mask* as a cropped blob."""
     labeled, num_components = ndimage.label(
@@ -118,12 +140,22 @@ def _split_blobs(
     )
     logger.info(f"Found {num_components} objects in the ligand mask")
     sizes = np.bincount(labeled.ravel())  # index 0 is background
+    candidates = [
+        component
+        for component in range(1, num_components + 1)
+        if sizes[component] >= MIN_BLOB_VOXELS
+    ]
+    emit(
+        on_progress,
+        "split_blobs",
+        0,
+        len(candidates),
+        f"Found {len(candidates)} blob candidates",
+    )
 
     layout.find_blobs.mkdir(parents=True, exist_ok=True)
     blob_id = 0
-    for component in range(1, num_components + 1):
-        if sizes[component] < MIN_BLOB_VOXELS:  # likely noise
-            continue
+    for component in candidates:
         blob_id += 1
         mask = ligand_mask.with_grid((labeled == component).astype(np.uint8))
         cropped, _ = crop_mrcs(
@@ -140,6 +172,13 @@ def _split_blobs(
         ).dump(layout.blob(blob_id))
         to_mrc(cropped["mask"], layout.blob_mask(blob_id), verbose=False)
         logger.info(f"Saved blob {blob_id} to {layout.blob(blob_id)}")
+        emit(
+            on_progress,
+            "split_blobs",
+            blob_id,
+            len(candidates),
+            f"Saved blob {blob_id}",
+        )
 
     logger.info(f"Saved {blob_id} blobs to {layout.find_blobs}")
     return blob_id

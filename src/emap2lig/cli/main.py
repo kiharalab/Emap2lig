@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 
 from ..utils.log import setup_logging
-from .common import DEFAULTS, make_config, run_stage
+from .common import DEFAULTS, make_config, make_tqdm_callback, run_stage
 
 app = typer.Typer()
 
@@ -69,8 +69,22 @@ def main(
 
     seed_everything(seed)
     ligand_records = parse_ligand_list(ligand_list)
-    run_stage(detect_ligand_objects, input_map, output_dir, cfg, emdb_id)
-    run_stage(run_structure_modeling, output_dir, ligand_records, cfg)
+    on_progress = make_tqdm_callback()
+    run_stage(
+        detect_ligand_objects,
+        input_map,
+        output_dir,
+        cfg,
+        emdb_id,
+        on_progress=on_progress,
+    )
+    run_stage(
+        run_structure_modeling,
+        output_dir,
+        ligand_records,
+        cfg,
+        on_progress=on_progress,
+    )
 
 
 if __name__ == "__main__":

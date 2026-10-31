@@ -54,7 +54,10 @@ def _gzip_cached(target: Path) -> tuple[Path, int] | None:
         gz = cache_root / f"{target.stem}-{key}.gz"
         if not gz.exists():
             tmp = gz.with_name(gz.name + f".tmp.{os.getpid()}")
-            with open(target, "rb") as src, gzip.open(tmp, "wb", compresslevel=1) as dst:
+            with (
+                open(target, "rb") as src,
+                gzip.open(tmp, "wb", compresslevel=1) as dst,
+            ):
                 shutil.copyfileobj(src, dst, length=256 * 1024)
             tmp.replace(gz)
         return gz, original_size
@@ -278,7 +281,9 @@ async def serve_file(request: Request, job_id: str, file_path: str):
 
     suffix = full_path.suffix.lower()
     media_type = _MIME.get(suffix, "application/octet-stream")
-    return _served_file_response(request, full_path, media_type, filename=full_path.name)
+    return _served_file_response(
+        request, full_path, media_type, filename=full_path.name
+    )
 
 
 @router.get("/load-results")

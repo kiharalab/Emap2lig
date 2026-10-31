@@ -37,8 +37,9 @@ package `emap2lig-webui` at the version pinned in `.webui-version`.
 | `POST` | `/api/detect` | Submit detection job (Stage 1) |
 | `POST` | `/api/model` | Submit modeling for all blobs (Stage 2) |
 | `POST` | `/api/model-blob` | Submit modeling for a single blob |
-| `GET` | `/api/jobs/{id}` | Poll job status |
-| `GET` | `/api/jobs/{id}/logs` | Get job logs |
+| `GET` | `/api/jobs` | List in-memory jobs |
+| `GET` | `/api/jobs/{id}` | Poll job status (stages, queue_position) |
+| `POST` | `/api/jobs/{id}/cancel` | Cancel a queued or running job |
 | `GET` | `/api/files/...` | Serve output files to Mol* viewer |
 | `GET` | `/api/download/status` | Model download status |
 | `POST` | `/api/download/model` | Trigger model download |
@@ -46,8 +47,14 @@ package `emap2lig-webui` at the version pinned in `.webui-version`.
 
 ## Job Model
 
-Jobs run in background threads (`asyncio.to_thread`). Status progresses:
-`pending` → `running` → `completed` / `failed`.
+Jobs run on a single-worker FIFO queue (`web/runner.py`) so two GPU stages
+cannot overlap. Status progresses:
+`queued` → `running` → `completed` / `failed` / `cancelled`.
+
+Pipeline stages emit structured `ProgressEvent`s; the job payload includes
+`stages` (current/total/failed per stage) and `queue_position` while queued.
+`POST /api/jobs/{id}/cancel` drops a queued job immediately, or sets a cancel
+flag so a running job stops at the next progress event.
 
 Job state is stored in-memory (no database). Restarting the server loses
 active jobs but results on disk remain accessible via the Visualization tab.
@@ -69,6 +76,9 @@ uv run --group web fastapi dev emap2lig.web.app:app
 
 # Fetch frontend/dist/ from npm (required in a checkout)
 uv run python scripts/sync_frontend.py
+
+# Or copy dist/ from a local Emap2lig-web checkout
+uv run python scripts/sync_frontend.py --local
 ```
 
 ## Troubleshooting
@@ -78,5 +88,6 @@ uv run python scripts/sync_frontend.py
 | Port already in use | `cli.py` auto-frees the port; or use `--port` |
 | Frontend not loading | Ensure `frontend/dist/` exists; run `uv run python scripts/sync_frontend.py` |
 | Model download fails | Check internet; weights stored in `~/.emap2lig/models/` |
-| Job stuck at pending | Restart server; check GPU availability |
+| Job stuck at queued | Another job is using the GPU; cancel it or wait |
+| Job stuck at running | Restart server; check GPU availability |
 | Mol* shows nothing | Verify map at correct contour level; check file paths |

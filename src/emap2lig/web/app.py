@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -14,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 
 from .routers import detect, download, files, jobs, model
+from .runner import JobRunner
 
 # Resolved once at import time so it works regardless of cwd.
 _FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
@@ -84,11 +86,24 @@ def _package_version() -> str:
         return "unknown"
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Start the single-GPU job worker and stop it on shutdown."""
+    runner = JobRunner()
+    await runner.start()
+    app.state.runner = runner
+    try:
+        yield
+    finally:
+        await runner.stop()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Emap2lig",
         description="Web GUI for cryo-EM ligand detection and structure modeling",
         version=_package_version(),
+        lifespan=_lifespan,
     )
 
     # Compression — gzip for API JSON and file responses when the client sends

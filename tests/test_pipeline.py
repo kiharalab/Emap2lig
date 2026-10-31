@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from emap2lig.config import InferenceConfig
-from emap2lig.errors import Emap2ligError
+from emap2lig.errors import Emap2ligError, JobCancelledError
 from emap2lig.pipeline import build as build_module
 
 
@@ -23,7 +23,7 @@ def fake_build(monkeypatch):
 
     calls: list[dict] = []
 
-    def fake_predict(model, dataloader, writer, device):
+    def fake_predict(model, dataloader, writer, device, on_progress=None):
         dataset = dataloader.dataset
         calls.append(
             {
@@ -105,7 +105,7 @@ def test_missing_blobs_or_ligands_raise(fake_build, tmp_path) -> None:
 
 def test_predict_moves_batches_and_writes_each() -> None:
     class FakeModel(torch.nn.Module):
-        def predict_step(self, batch, batch_idx, num_batches):
+        def predict_step(self, batch, batch_idx, num_batches, on_step=None):
             assert not torch.is_grad_enabled()
             assert not self.training
             return {"total": num_batches, "x": batch["x"] * 2}
@@ -114,6 +114,7 @@ def test_predict_moves_batches_and_writes_each() -> None:
         def __init__(self):
             self.written = []
             self.finished = False
+            self.failed = 0
 
         def write(self, prediction, batch, batch_idx):
             self.written.append((batch_idx, prediction, batch))
@@ -131,3 +132,113 @@ def test_predict_moves_batches_and_writes_each() -> None:
     assert [p["total"] for _, p, _ in writer.written] == [3, 3, 3]
     assert writer.written[2][1]["x"].item() == 4
     assert writer.written[2][2]["object_id"] == ["2"]
+
+
+def test_predict_reports_failed_counts() -> None:
+    class FlakyModel(torch.nn.Module):
+        def predict_step(self, batch, batch_idx, num_batches, on_step=None):
+            if batch_idx == 1:
+                return None
+            return {"ok": True}
+
+    class FakeWriter:
+        def __init__(self):
+            self.written = []
+            self.failed = 0
+
+        def write(self, prediction, batch, batch_idx):
+            self.written.append(batch_idx)
+            if prediction is None:
+                self.failed += 1
+
+        def finish(self):
+            pass
+
+    events = []
+    writer = FakeWriter()
+    batches = [{"x": torch.tensor([i]), "identifier": [f"lig{i}"]} for i in range(3)]
+    build_module._predict(
+        FlakyModel(),
+        batches,
+        writer,
+        torch.device("cpu"),
+        on_progress=events.append,
+    )
+
+    assert writer.failed == 1
+    assert writer.written == [0, 1, 2]
+    assert [e.failed for e in events] == [0, 0, 1, 1]
+    assert events[-1].current == 3
+    assert events[-1].total == 3
+    assert events[-1].stage == "predict"
+
+
+def test_predict_reports_diffusion_steps() -> None:
+    class SteppedModel(torch.nn.Module):
+        predict_args = SimpleNamespace(
+            multiplicity=1,
+            max_parallel_multiplicity=8,
+            num_sampling_steps=4,
+        )
+
+        def predict_step(self, batch, batch_idx, num_batches, on_step=None):
+            if on_step is not None:
+                for step in range(1, 5):
+                    on_step(step)
+            return {"ok": True}
+
+    class FakeWriter:
+        failed = 0
+
+        def write(self, prediction, batch, batch_idx):
+            pass
+
+        def finish(self):
+            pass
+
+    events = []
+    batches = [{"identifier": ["ATP"]}, {"identifier": ["NAD"]}]
+    build_module._predict(
+        SteppedModel(),
+        batches,
+        FakeWriter(),
+        torch.device("cpu"),
+        on_progress=events.append,
+    )
+    currents = [e.current for e in events if e.stage == "predict"]
+    assert currents[0] == 0
+    assert currents[-1] == 8
+    assert currents == sorted(currents)
+    assert all(e.total == 8 for e in events)
+
+
+def test_predict_cancel_does_not_count_as_failed() -> None:
+    class CancellingModel(torch.nn.Module):
+        def predict_step(self, batch, batch_idx, num_batches, on_step=None):
+            if on_step is not None:
+                on_step(1)
+            raise JobCancelledError("Job cancelled")
+
+    class FakeWriter:
+        def __init__(self):
+            self.failed = 0
+            self.written = []
+
+        def write(self, prediction, batch, batch_idx):
+            self.written.append(batch_idx)
+            if prediction is None:
+                self.failed += 1
+
+        def finish(self):
+            pass
+
+    writer = FakeWriter()
+    with pytest.raises(JobCancelledError):
+        build_module._predict(
+            CancellingModel(),
+            [{"identifier": ["ATP"]}],
+            writer,
+            torch.device("cpu"),
+        )
+    assert writer.failed == 0
+    assert writer.written == []

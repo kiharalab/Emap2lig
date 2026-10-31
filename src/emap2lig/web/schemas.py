@@ -46,10 +46,15 @@ class BlobResultResponse(BaseModel):
     conformers: list[ConformerResponse] = Field(default_factory=list)
 
 
-class ProgressDetailResponse(BaseModel):
+class StageProgressResponse(BaseModel):
+    stage: str
+    status: str
     current: int
-    total: int
-    unit: str  # "blobs" | "combinations" | "blob candidates"
+    total: int | None = None
+    failed: int = 0
+    message: str = ""
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
 
 class JobResponse(BaseModel):
@@ -58,12 +63,26 @@ class JobResponse(BaseModel):
     status: str
     created_at: datetime
     progress: str
-    progress_detail: ProgressDetailResponse | None = None
+    stages: list[StageProgressResponse] = Field(default_factory=list)
     error: str | None = None
     output_dir: str | None = None
     num_blobs: int | None = None
     detect_job_id: str | None = None
     unified_map_url: str | None = None
+    queue_position: int | None = None
+    cancel_requested: bool = False
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+class JobSummaryResponse(BaseModel):
+    id: str
+    type: str
+    status: str
+    created_at: datetime
+    output_dir: str | None = None
+    detect_job_id: str | None = None
+    queue_position: int | None = None
 
 
 class JobCreateResponse(BaseModel):

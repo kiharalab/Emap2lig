@@ -66,8 +66,8 @@ Note: `extract-yaml` entry point was removed — use the PDB→YAML utility from
 | Function | Stage | Signature |
 |----------|-------|-----------|
 | `InferenceConfig(gpu, contour_level, detection_batch_size, multiplicity, ...)` | Config | validated dataclass |
-| `detect_ligand_objects(input_map, output_dir, cfg, emdb_id=None)` | Stage 1 | → `find_blobs/` path; raises `NoBlobsDetectedError` / `TooManyBlobsError` |
-| `run_structure_modeling(output_dir, ligand_records, cfg, blob_ids=None)` | Stage 2 | → `build_struct/` path; raises `Emap2ligError` |
+| `detect_ligand_objects(input_map, output_dir, cfg, emdb_id=None, on_progress=None)` | Stage 1 | → `find_blobs/` path; raises `NoBlobsDetectedError` / `TooManyBlobsError` |
+| `run_structure_modeling(output_dir, ligand_records, cfg, blob_ids=None, on_progress=None)` | Stage 2 | → `build_struct/` path; raises `Emap2ligError` |
 | `parse_ligand_list(path)` / `write_ligand_list(records, path)` | Utility | ↔ `list[LigandRecord]` |
 | `prepare_ligands(records, ligands_dir)` | Utility | → written `.npz` paths (failures skipped) |
 
@@ -112,7 +112,7 @@ uv run --group web emap2lig-gui
 ## CONVENTIONS (THIS PROJECT)
 
 - **Python**: 3.12–3.14 (uv-managed, uv_build build backend)
-- **Version source of truth**: `pyproject.toml` (`[project].version`) for the Python package. After changing the Python version, run `uv lock`. The web UI bundle is pinned separately in `.webui-version` (npm `emap2lig-webui`); `web/frontend/dist/` is gitignored and fetched by `scripts/sync_frontend.py` (CI runs it before `uv build`), never edited by hand. Only `web/frontend/dist/` of the frontend is included in published packages.
+- **Version source of truth**: `pyproject.toml` (`[project].version`) for the Python package. After changing the Python version, run `uv lock`. The web UI bundle is pinned separately in `.webui-version` (npm `emap2lig-webui`); `web/frontend/dist/` is gitignored and fetched by `scripts/sync_frontend.py` from npm or `--local` (CI uses npm before `uv build`), never edited by hand. Only `web/frontend/dist/` of the frontend is included in published packages.
 - **Commits**: do not add AI/agent co-author trailers (for example `Co-authored-by: Amp ...`) to commit messages.
 - **Formatter**: Ruff — 88 chars, double quotes, space indent
 - **Types**: Use `|` for unions, lowercase `list`/`dict`

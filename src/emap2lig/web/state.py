@@ -6,9 +6,10 @@ This is intentional — the app targets single-user / small-lab use.
 
 from __future__ import annotations
 
+import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -49,7 +50,22 @@ class BlobResult:
 # ---------------------------------------------------------------------------
 
 JobType = Literal["detect", "model"]
-JobStatus = Literal["pending", "running", "completed", "failed"]
+JobStatus = Literal["queued", "running", "completed", "failed", "cancelled"]
+StageStatus = Literal["running", "completed", "failed"]
+
+
+@dataclass
+class StageProgress:
+    """One pipeline stage's structured progress, as stored on a :class:`Job`."""
+
+    stage: str
+    status: StageStatus = "running"
+    current: int = 0
+    total: int | None = None
+    failed: int = 0
+    message: str = ""
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
 
 @dataclass
@@ -60,10 +76,11 @@ class Job:
     created_at: datetime
     output_dir: Path
     progress: str = ""
-    # Structured progress parsed from pipeline output, e.g.
-    # {"current": 18, "total": 40, "unit": "combinations"}; None when unknown.
-    progress_detail: dict | None = None
+    stages: list[StageProgress] = field(default_factory=list)
     error: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    cancel_event: threading.Event = field(default_factory=threading.Event)
 
     # Stage 1 outputs
     num_blobs: int | None = None
@@ -102,7 +119,7 @@ def create_job(
     job = Job(
         id=uuid.uuid4().hex[:12],
         type=job_type,
-        status="pending",
+        status="queued",
         created_at=datetime.now(UTC),
         output_dir=output_dir,
         **kwargs,
@@ -117,3 +134,8 @@ def get_job(job_id: str) -> Job | None:
 
 def list_jobs() -> list[Job]:
     return list(_jobs.values())
+
+
+def clear_jobs() -> None:
+    """Drop every in-memory job. Used by tests."""
+    _jobs.clear()

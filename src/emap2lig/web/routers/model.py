@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from ..schemas import JobCreateResponse, LigandSpec
@@ -39,7 +39,7 @@ class BlobModelRequest(BaseModel):
 @router.post("/model", response_model=JobCreateResponse)
 async def start_modeling(
     body: ModelRequest,
-    background_tasks: BackgroundTasks,
+    request: Request,
 ):
     """Start structure modeling on previously detected blobs (Stage 2)."""
     detect_job = get_job(body.job_id)
@@ -74,14 +74,14 @@ async def start_modeling(
     job.blobs = detect_job.blobs
     job.num_blobs = detect_job.num_blobs
 
-    background_tasks.add_task(run_modeling, job, body.ligand_list)
+    request.app.state.runner.submit(job, lambda: run_modeling(job, body.ligand_list))
     return JobCreateResponse(job_id=job.id)
 
 
 @router.post("/model-blob", response_model=JobCreateResponse)
 async def start_blob_modeling(
     body: BlobModelRequest,
-    background_tasks: BackgroundTasks,
+    request: Request,
 ):
     """Run incremental structure modeling on specific blobs with new ligands.
 
@@ -138,5 +138,7 @@ async def start_blob_modeling(
     job.blobs = parent_blobs
     job.num_blobs = parent_num
 
-    background_tasks.add_task(run_modeling, job, body.ligand_list, body.blob_ids)
+    request.app.state.runner.submit(
+        job, lambda: run_modeling(job, body.ligand_list, body.blob_ids)
+    )
     return JobCreateResponse(job_id=job.id)

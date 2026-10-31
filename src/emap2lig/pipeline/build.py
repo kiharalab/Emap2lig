@@ -1,6 +1,7 @@
 """Build stage: diffusion-based ligand structure modeling on detected blobs."""
 
 import logging
+import math
 import shutil
 import uuid
 from pathlib import Path
@@ -8,7 +9,6 @@ from typing import Any
 
 import torch
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from ..config import InferenceConfig
 from ..data.dataset import LigandModelingDataset, collate_fn
@@ -19,6 +19,7 @@ from ..errors import Emap2ligError
 from ..layout import OutputLayout
 from ..model.model import Emap2lig
 from ..model.pretrained import build_structure_model
+from ..progress import ProgressCallback, emit
 from ..utils.device import resolve_device
 from ..utils.runtime import configure_runtime
 from .ranking import rank_conformers
@@ -31,6 +32,7 @@ def run_structure_modeling(
     ligand_records: list[LigandRecord],
     cfg: InferenceConfig,
     blob_ids: list[int] | None = None,
+    on_progress: ProgressCallback | None = None,
 ) -> Path:
     """Model each ligand into each blob found by :func:`detect_ligand_objects`.
 
@@ -45,9 +47,13 @@ def run_structure_modeling(
         blob_ids: Model only these blobs, with only *ligand_records*
             (incremental re-modeling).  Default: every blob, with every ligand
             prepared under ``preprocess/ligands/``.
+        on_progress: Optional structured-progress callback.
 
     Returns:
         The ``build_struct/`` directory.
+
+    Raises:
+        emap2lig.errors.JobCancelledError: Propagated from *on_progress*.
     """
     layout = OutputLayout(Path(output_dir))
     configure_runtime()
@@ -68,9 +74,11 @@ def run_structure_modeling(
         else layout.ligands
     )
     try:
+        emit(on_progress, "prepare_ligands", 0, 1, "Preparing ligand features")
         prepare_ligands(ligand_records, ligands_dir)
         if not any(ligands_dir.glob("*.npz")):
             raise Emap2ligError("No ligand could be prepared from the ligand list")
+        emit(on_progress, "prepare_ligands", 1, 1, "Ligand features ready")
 
         # One batch per blob-ligand pair; the model chunks the multiplicity
         # internally so there is a single progress pass.
@@ -88,9 +96,11 @@ def run_structure_modeling(
         )
 
         logger.info("Initializing Emap2lig structure model")
+        emit(on_progress, "load_model", 0, 1, "Loading structure model")
         model = build_structure_model(num_sampling_steps=cfg.num_sampling_steps)
         model.predict_args.multiplicity = cfg.multiplicity
         model.predict_args.max_parallel_multiplicity = cfg.max_parallel_multiplicity
+        emit(on_progress, "load_model", 1, 1, "Structure model ready")
 
         layout.build_struct.mkdir(parents=True, exist_ok=True)
         writer = LigandWriter(output_dir=layout.build_struct, output_format="mmcif")
@@ -98,14 +108,42 @@ def run_structure_modeling(
             f"Running inference on {len(dataset)} combinations with multiplicity "
             f"{cfg.multiplicity} (max parallel {cfg.max_parallel_multiplicity})"
         )
-        _predict(model, dataloader, writer, device)
+        _predict(model, dataloader, writer, device, on_progress)
         logger.info("Inference completed.")
     finally:
         if incremental:
             shutil.rmtree(ligands_dir, ignore_errors=True)
 
+    emit(on_progress, "rank", 0, 1, "Ranking conformers")
     rank_conformers(layout.build_struct, layout.best)
+    emit(on_progress, "rank", 1, 1, "Ranking complete")
     return layout.build_struct
+
+
+def _batch_label(batch: Any) -> str:
+    """Human-readable ligand / blob label from a collated batch."""
+    identifiers = batch.get("identifier", batch.get("class_name", ["unknown"]))
+    label = identifiers[0] if isinstance(identifiers, list) else identifiers
+    return str(label)
+
+
+def _steps_per_batch(model: Emap2lig) -> int:
+    """Diffusion steps emitted per blob-ligand combination.
+
+    Args:
+        model: Structure model. Tests may omit ``predict_args``.
+
+    Returns:
+        ``ceil(multiplicity / max_parallel) * num_sampling_steps``, or 1 when
+        ``predict_args`` is missing.
+    """
+    args = getattr(model, "predict_args", None)
+    if args is None:
+        return 1
+    multiplicity = max(int(args.multiplicity), 1)
+    max_parallel = max(int(args.max_parallel_multiplicity), 1)
+    n_steps = max(int(args.num_sampling_steps), 1)
+    return math.ceil(multiplicity / max_parallel) * n_steps
 
 
 def _predict(
@@ -113,17 +151,51 @@ def _predict(
     dataloader: DataLoader,
     writer: LigandWriter,
     device: torch.device,
+    on_progress: ProgressCallback | None = None,
 ) -> None:
     """Run *model* over *dataloader*, handing each batch to *writer*."""
     # Move the weights outside inference mode: inference-tensor parameters
     # change what the compiled submodules generate, and with it the outputs.
     model.to(device).eval()
     num_batches = len(dataloader)
+    steps_per_batch = _steps_per_batch(model)
+    total = num_batches * steps_per_batch
+    emit(
+        on_progress,
+        "predict",
+        0,
+        total,
+        f"Running inference on {num_batches} combinations",
+    )
     with torch.inference_mode():
-        for batch_idx, batch in enumerate(tqdm(dataloader, desc="Predicting")):
+        for batch_idx, batch in enumerate(dataloader):
             batch = _to_device(batch, device)
-            prediction = model.predict_step(batch, batch_idx, num_batches)
+            label = _batch_label(batch)
+
+            def _on_step(
+                local_step: int, idx: int = batch_idx, msg: str = label
+            ) -> None:
+                emit(
+                    on_progress,
+                    "predict",
+                    idx * steps_per_batch + local_step,
+                    total,
+                    f"Predicting {idx + 1}/{num_batches} — {msg}",
+                    failed=writer.failed,
+                )
+
+            prediction = model.predict_step(
+                batch, batch_idx, num_batches, on_step=_on_step
+            )
             writer.write(prediction, batch, batch_idx)
+            emit(
+                on_progress,
+                "predict",
+                (batch_idx + 1) * steps_per_batch,
+                total,
+                f"Predicting {batch_idx + 1}/{num_batches} — {label}",
+                failed=writer.failed,
+            )
     writer.finish()
 
 

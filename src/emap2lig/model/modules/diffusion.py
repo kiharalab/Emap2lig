@@ -1,5 +1,6 @@
 import logging
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import torch
@@ -405,6 +406,7 @@ class AtomDiffusion(Module):
         prompt_points: torch.Tensor,
         num_sampling_steps: int,
         multiplicity: int = 1,
+        on_step: Callable[[int], None] | None = None,
     ) -> torch.Tensor:
         """Sample from the diffusion model using EDM sampling.
 
@@ -433,6 +435,8 @@ class AtomDiffusion(Module):
             The number of sampling steps.
         multiplicity : int, optional
             The multiplicity, by default 1.
+        on_step : Callable[[int], None] | None
+            Called after each denoising step with the 1-based step index.
 
         Returns
         -------
@@ -473,7 +477,9 @@ class AtomDiffusion(Module):
         logger.debug(f"EDM diffusion sampling with {num_sampling_steps} steps")
 
         # Iterative denoising loop
-        for sigma_tm, sigma_t, gamma in sigmas_and_gammas:
+        for step_idx, (sigma_tm, sigma_t, gamma) in enumerate(
+            sigmas_and_gammas, start=1
+        ):
             sigma_tm, sigma_t, gamma = sigma_tm.item(), sigma_t.item(), gamma.item()
 
             t_hat = sigma_tm * (1 + gamma)  # [1]
@@ -506,5 +512,7 @@ class AtomDiffusion(Module):
             )
 
             atom_coords = atom_coords_next
+            if on_step is not None:
+                on_step(step_idx)
 
         return atom_coords

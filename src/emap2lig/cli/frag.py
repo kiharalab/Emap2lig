@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 
 from ..utils.log import setup_logging
-from .common import DEFAULTS, make_config, run_stage
+from .common import DEFAULTS, make_config, make_tqdm_callback, run_stage
 
 app = typer.Typer()
 
@@ -38,7 +38,14 @@ def main(
 
     from ..pipeline import run_fragment_detection
 
-    run_stage(run_fragment_detection, input_map, output_dir, cfg, emdb_id)
+    run_stage(
+        run_fragment_detection,
+        input_map,
+        output_dir,
+        cfg,
+        emdb_id,
+        on_progress=make_tqdm_callback(),
+    )
 
 
 if __name__ == "__main__":

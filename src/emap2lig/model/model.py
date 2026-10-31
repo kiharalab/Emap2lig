@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 import logging
 import sys
+from collections.abc import Callable
 from typing import Any
 
 from safetensors.torch import load_file
 import torch
 from torch import Tensor, nn
 
+from ..errors import JobCancelledError
 from ..utils.weights import fetch_weights
 from .modules.conf_embedder import ConformerEmbedder
 from .modules.diffusion import AtomDiffusion, DiffusionModuleArgs
@@ -333,6 +335,7 @@ class Emap2lig(nn.Module):
         num_sampling_steps: int | None = None,
         multiplicity: int = 1,
         max_parallel_multiplicity: int | None = None,
+        on_step: Callable[[int], None] | None = None,
     ) -> dict[str, Tensor]:
         out_dict = {}
 
@@ -398,6 +401,12 @@ class Emap2lig(nn.Module):
             "sampled_atom_coords": [],
         }
 
+        sampling_steps = (
+            num_sampling_steps
+            if num_sampling_steps is not None
+            else self.predict_args.num_sampling_steps
+        )
+        step_offset = 0
         for start in range(0, multiplicity, chunk_size):
             chunk_prompt_points = prompt_points[:, start : start + chunk_size]
             chunk_multiplicity = chunk_prompt_points.shape[1]
@@ -426,6 +435,10 @@ class Emap2lig(nn.Module):
             outputs["global_features"].append(global_features)
 
             # Run diffusion module (sampling)
+            def _chunk_step(local: int, offset: int = step_offset) -> None:
+                if on_step is not None:
+                    on_step(offset + local)
+
             sampled_atom_coords = self.diffusion_module.sample(
                 atom_inputs=atom_init_feats,
                 atom_feats=atom_feats,
@@ -436,10 +449,12 @@ class Emap2lig(nn.Module):
                 atom_mask=feats["atom_mask"],
                 ref_pos=feats["ref_pos"],
                 prompt_points=chunk_prompt_points,
-                num_sampling_steps=num_sampling_steps,
+                num_sampling_steps=sampling_steps,
                 multiplicity=chunk_multiplicity,
+                on_step=_chunk_step if on_step is not None else None,
             )
             outputs["sampled_atom_coords"].append(sampled_atom_coords)
+            step_offset += sampling_steps
 
         for key, chunks in outputs.items():
             out_dict[key] = chunks[0] if len(chunks) == 1 else torch.cat(chunks, dim=0)
@@ -447,7 +462,11 @@ class Emap2lig(nn.Module):
         return out_dict
 
     def predict_step(
-        self, batch: dict[str, Any], batch_idx: int, num_batches: int | None = None
+        self,
+        batch: dict[str, Any],
+        batch_idx: int,
+        num_batches: int | None = None,
+        on_step: Callable[[int], None] | None = None,
     ) -> dict[str, Tensor] | None:
         """Run one blob-ligand inference batch.
 
@@ -459,9 +478,13 @@ class Emap2lig(nn.Module):
             batch: Collated ``LigandModelingDataset`` item.
             batch_idx: Predict batch index.
             num_batches: Total number of batches, for progress messages.
+            on_step: Optional 1-based diffusion-step callback across chunks.
 
         Returns:
             Writer outputs, or ``None`` when inference fails.
+
+        Raises:
+            JobCancelledError: Propagated from *on_step* when a web job is cancelled.
         """
         # identifier / class_name are lists (one per item in batch)
         identifiers = batch.get("identifier", batch.get("class_name", ["unknown"]))
@@ -478,7 +501,10 @@ class Emap2lig(nn.Module):
                 num_sampling_steps=self.predict_args.num_sampling_steps,
                 multiplicity=self.predict_args.multiplicity,
                 max_parallel_multiplicity=self.predict_args.max_parallel_multiplicity,
+                on_step=on_step,
             )
+        except JobCancelledError:
+            raise
         except Exception as e:
             import traceback
 

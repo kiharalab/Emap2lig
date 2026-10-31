@@ -8,166 +8,121 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
-import sys
 import threading
+from datetime import UTC, datetime
 from pathlib import Path
 
-from ..utils.storage import get_home, get_model_dir, set_home
+from ..errors import JobCancelledError
 from ..layout import OutputLayout
+from ..progress import ProgressCallback, ProgressEvent
+from ..utils.storage import get_home, get_model_dir, set_home
 from .results_scan import resolve_blobs_dir, scan_blobs, scan_results
-from .schemas import LigandSpec
-from .state import Job
+from .schemas import (
+    JobResponse,
+    JobSummaryResponse,
+    LigandSpec,
+    StageProgressResponse,
+)
+from .state import Job, JobStatus, StageProgress
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Progress capturing helpers
+# Structured progress → Job.stages
 # ---------------------------------------------------------------------------
 
 
-# Structured progress: parse pipeline output lines / tqdm bars into
-# {"current", "total", "unit"} so the UI can show a determinate bar.
-_TQDM_RE = re.compile(r"(\d+)%\|[^|]*\|\s*(\d+)/(\d+)")
-_DETECT_CANDIDATES_RE = re.compile(r"Found (\d+) objects in the ligand mask")
-_DETECT_BLOB_RE = re.compile(r"Saved blob (\d+) to")
-_DETECT_DONE_RE = re.compile(r"Saved (\d+) blobs to")
-_MODEL_COMBOS_RE = re.compile(r"Running inference on (\d+) combinations")
+def apply_progress(job: Job, event: ProgressEvent) -> None:
+    """Record *event* on *job*, raising if cancel was requested.
 
+    Args:
+        job: In-memory job being updated.
+        event: Pipeline progress event.
 
-def _parse_progress(line: str, job: Job) -> dict | None:
-    """Extract structured progress from one pipeline output line."""
-    prev = job.progress_detail or {}
-    m = _TQDM_RE.search(line)
-    if m:
-        # tqdm bar, e.g. "Predicting:  45%|████ | 18/40 [..]" — modeling runs
-        # one batch per blob-ligand combination.
-        unit = "combinations" if "Predicting" in line else "steps"
-        return {
-            "current": int(m.group(2)),
-            "total": int(m.group(3)),
-            "unit": unit,
-        }
-    m = _MODEL_COMBOS_RE.search(line)
-    if m:
-        return {"current": 0, "total": int(m.group(1)), "unit": "combinations"}
-    m = _DETECT_CANDIDATES_RE.search(line)
-    if m:
-        return {
-            "current": 0,
-            "total": int(m.group(1)),
-            "unit": "blob candidates",
-        }
-    m = _DETECT_BLOB_RE.search(line)
-    if m:
-        # Candidate count (upper bound) was announced earlier.
-        return {
-            "current": int(m.group(1)),
-            "total": prev.get("total") or int(m.group(1)),
-            "unit": "blobs",
-        }
-    m = _DETECT_DONE_RE.search(line)
-    if m:
-        return {
-            "current": int(m.group(1)),
-            "total": int(m.group(1)),
-            "unit": "blobs",
-        }
-    return None
-
-
-class _JobLogHandler(logging.Handler):
-    """Logging handler that forwards ``emap2lig`` log messages to ``job.progress``."""
-
-    def __init__(self, job: Job):
-        super().__init__(level=logging.INFO)
-        self.job = job
-
-    def emit(self, record: logging.LogRecord) -> None:
-        line = record.getMessage().strip()
-        if line:
-            self.job.progress = line
-            self.job.progress_detail = _parse_progress(line, self.job) or self.job.progress_detail
-
-
-class _TeeWriter:
-    """Stream wrapper that writes to the original stream *and* updates ``job.progress``.
-
-    Handles both newline-delimited output and carriage-return progress bars
-    (e.g. ``tqdm``).
-
-    .. warning:: Replacing ``sys.stdout`` is *not* thread-safe.  This is
-       acceptable for the single-user / small-lab use case of the app.
+    Raises:
+        JobCancelledError: ``job.cancel_event`` is set.
     """
-
-    def __init__(self, original, job: Job):
-        self.original = original
-        self.job = job
-        self._buf = ""
-
-    def write(self, text: str) -> int:
-        self.original.write(text)
-        self._buf += text
-        # Process complete lines
-        while "\n" in self._buf:
-            line, self._buf = self._buf.split("\n", 1)
-            self._update(line)
-        # Handle carriage-return overwrites (tqdm, etc.)
-        while "\r" in self._buf:
-            line, self._buf = self._buf.split("\r", 1)
-            self._update(line)
-        return len(text)
-
-    def _update(self, line: str) -> None:
-        line = line.strip()
-        if line:
-            self.job.progress = line
-            self.job.progress_detail = _parse_progress(line, self.job) or self.job.progress_detail
-
-    def flush(self) -> None:
-        if hasattr(self.original, "flush"):
-            self.original.flush()
-
-    # Delegate everything else (fileno, isatty, …) to the real stream.
-    def __getattr__(self, name: str):
-        return getattr(self.original, name)
+    if job.cancel_event.is_set():
+        raise JobCancelledError("Job cancelled")
+    now = datetime.now(UTC)
+    stage = next((s for s in job.stages if s.stage == event.stage), None)
+    if stage is None:
+        for previous in job.stages:
+            if previous.status == "running":
+                previous.status = "completed"
+                previous.finished_at = now
+                if previous.total is not None:
+                    previous.current = previous.total
+        stage = StageProgress(stage=event.stage, status="running", started_at=now)
+        job.stages.append(stage)
+    stage.current = event.current
+    stage.total = event.total
+    stage.failed = event.failed
+    stage.message = event.message
+    if event.total is not None and event.total > 0 and event.current >= event.total:
+        stage.status = "completed"
+        stage.finished_at = now
+    job.progress = event.message
 
 
-class _ProgressCapture:
-    """Context manager: captures logging + stdout/stderr, piping into ``job.progress``.
+def job_progress_callback(job: Job) -> ProgressCallback:
+    """Return a pipeline callback that writes structured progress onto *job*."""
 
-    Usage::
+    def _callback(event: ProgressEvent) -> None:
+        apply_progress(job, event)
 
-        with _ProgressCapture(job):
-            run_heavy_work()
-    """
+    return _callback
 
-    def __init__(self, job: Job):
-        self.job = job
-        self._handler = _JobLogHandler(job)
-        self._pkg_logger = logging.getLogger("emap2lig")
-        self._old_level = self._pkg_logger.level
-        self._old_stdout = None
-        self._old_stderr = None
 
-    def __enter__(self):
-        # Make sure INFO records are emitted even if logging is unconfigured.
-        if self._pkg_logger.getEffectiveLevel() > logging.INFO:
-            self._pkg_logger.setLevel(logging.INFO)
-        self._pkg_logger.addHandler(self._handler)
-        self._old_stdout = sys.stdout
-        self._old_stderr = sys.stderr
-        sys.stdout = _TeeWriter(self._old_stdout, self.job)  # type: ignore[assignment]
-        sys.stderr = _TeeWriter(self._old_stderr, self.job)  # type: ignore[assignment]
-        return self
+def job_to_response(job: Job, queue_position: int | None = None) -> JobResponse:
+    """Serialize *job* to the public job payload."""
+    return JobResponse(
+        id=job.id,
+        type=job.type,
+        status=job.status,
+        created_at=job.created_at,
+        progress=job.progress,
+        stages=[
+            StageProgressResponse(
+                stage=s.stage,
+                status=s.status,
+                current=s.current,
+                total=s.total,
+                failed=s.failed,
+                message=s.message,
+                started_at=s.started_at,
+                finished_at=s.finished_at,
+            )
+            for s in job.stages
+        ],
+        error=job.error,
+        output_dir=str(job.output_dir),
+        num_blobs=job.num_blobs,
+        detect_job_id=job.detect_job_id,
+        unified_map_url=(
+            f"/api/files/{job.id}/{job.unified_map_path}"
+            if job.unified_map_path
+            else None
+        ),
+        queue_position=queue_position,
+        cancel_requested=job.cancel_event.is_set(),
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+    )
 
-    def __exit__(self, *exc):
-        sys.stdout = self._old_stdout  # type: ignore[assignment]
-        sys.stderr = self._old_stderr  # type: ignore[assignment]
-        self._pkg_logger.removeHandler(self._handler)
-        self._pkg_logger.setLevel(self._old_level)
-        return False
+
+def job_to_summary(job: Job, queue_position: int | None = None) -> JobSummaryResponse:
+    """Serialize *job* to the list-view payload."""
+    return JobSummaryResponse(
+        id=job.id,
+        type=job.type,
+        status=job.status,
+        created_at=job.created_at,
+        output_dir=str(job.output_dir),
+        detect_job_id=job.detect_job_id,
+        queue_position=queue_position,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -243,9 +198,27 @@ def _job_config(job: Job):
     return InferenceConfig(**{k: v for k, v in options.items() if v is not None})
 
 
+def _finish(
+    job: Job, status: JobStatus, progress: str, error: str | None = None
+) -> None:
+    """Mark *job* terminal with *status*, *progress*, and optional *error*."""
+    now = datetime.now(UTC)
+    if status in {"cancelled", "failed"}:
+        for stage in job.stages:
+            if stage.status == "running":
+                stage.status = "failed"
+                stage.finished_at = now
+    job.status = status
+    job.progress = progress
+    job.error = error
+    job.finished_at = now
+
+
 async def run_detection(job: Job) -> None:
     """Run Stage 1 detection in a background thread."""
     job.status = "running"
+    if job.started_at is None:
+        job.started_at = datetime.now(UTC)
     job.progress = "Loading configuration..."
     try:
         validate_gpu_selection(job.gpu)
@@ -262,24 +235,26 @@ async def run_detection(job: Job) -> None:
                 f"{layout.unified_map}"
             )
         job.unified_map_path = str(layout.unified_map.relative_to(job.output_dir))
-
-        job.status = "completed"
-        job.progress = f"Detected {len(blobs)} blobs"
+        _finish(job, "completed", f"Detected {len(blobs)} blobs")
+    except JobCancelledError:
+        _finish(job, "cancelled", "Cancelled")
     except Exception as e:
         logger.exception("Detection failed")
-        job.status = "failed"
-        job.error = str(e)
+        _finish(job, "failed", job.progress or "Detection failed", str(e))
 
 
 def _detect_sync(job: Job) -> Path:
     from emap2lig.pipeline import detect_ligand_objects
 
-    with _ProgressCapture(job):
-        cfg = _job_config(job)
-        job.progress = "Running blob detection..."
-        return detect_ligand_objects(
-            job.input_map_path, job.output_dir, cfg, job.emdb_id
-        )
+    cfg = _job_config(job)
+    job.progress = "Running blob detection..."
+    return detect_ligand_objects(
+        job.input_map_path,
+        job.output_dir,
+        cfg,
+        job.emdb_id,
+        on_progress=job_progress_callback(job),
+    )
 
 
 async def run_modeling(
@@ -292,6 +267,8 @@ async def run_modeling(
     When *blob_ids* is provided, only those blobs are (re)modeled.
     """
     job.status = "running"
+    if job.started_at is None:
+        job.started_at = datetime.now(UTC)
     job.progress = (
         "Preparing incremental ligand YAML..."
         if blob_ids is not None
@@ -306,16 +283,20 @@ async def run_modeling(
         )
 
         job.results = scan_results(results_dir)
-        job.status = "completed"
-        job.progress = (
-            "Incremental modeling complete"
-            if blob_ids is not None
-            else "Modeling complete"
+        _finish(
+            job,
+            "completed",
+            (
+                "Incremental modeling complete"
+                if blob_ids is not None
+                else "Modeling complete"
+            ),
         )
+    except JobCancelledError:
+        _finish(job, "cancelled", "Cancelled")
     except Exception as e:
         logger.exception("Modeling failed")
-        job.status = "failed"
-        job.error = str(e)
+        _finish(job, "failed", job.progress or "Modeling failed", str(e))
 
 
 def _model_sync(
@@ -324,14 +305,17 @@ def _model_sync(
     from emap2lig.data.ligand_list import parse_ligand_list
     from emap2lig.pipeline import run_structure_modeling
 
-    with _ProgressCapture(job):
-        cfg = _job_config(job)
-        job.progress = "Parsing ligand YAML..."
-        ligand_records = parse_ligand_list(ligand_list_path)
-        job.progress = "Running structure modeling..."
-        return run_structure_modeling(
-            job.output_dir, ligand_records, cfg, blob_ids=blob_ids
-        )
+    cfg = _job_config(job)
+    job.progress = "Parsing ligand YAML..."
+    ligand_records = parse_ligand_list(ligand_list_path)
+    job.progress = "Running structure modeling..."
+    return run_structure_modeling(
+        job.output_dir,
+        ligand_records,
+        cfg,
+        blob_ids=blob_ids,
+        on_progress=job_progress_callback(job),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -420,7 +404,9 @@ def start_model_download() -> bool:
         try:
             results = _download_models_sync()
             if not all(results.values()):
-                _download_state["error"] = "one or more downloads failed (see server log)"
+                _download_state["error"] = (
+                    "one or more downloads failed (see server log)"
+                )
         except Exception as e:  # surface the failure in /download/status
             _download_state["error"] = str(e)
         finally:

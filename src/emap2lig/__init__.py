@@ -25,6 +25,7 @@ _EXPORTS = {
     "NoBlobsDetectedError": "emap2lig.errors",
     "TooManyBlobsError": "emap2lig.errors",
     "LigandPreparationError": "emap2lig.errors",
+    "JobCancelledError": "emap2lig.errors",
     "LigandRecord": "emap2lig.data.types",
     "parse_ligand_list": "emap2lig.data.ligand_list",
     "write_ligand_list": "emap2lig.data.ligand_list",

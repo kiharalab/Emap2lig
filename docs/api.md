@@ -19,9 +19,9 @@ build_dir = run_structure_modeling("output/", ligand_records, cfg)
 | Name | Stage | Returns |
 |------|-------|---------|
 | `InferenceConfig(...)` | Config | runtime options (validated on construction) |
-| `detect_ligand_objects(input_map, output_dir, cfg, emdb_id=None)` | Find | `find_blobs/` directory |
+| `detect_ligand_objects(input_map, output_dir, cfg, emdb_id=None, on_progress=None)` | Find | `find_blobs/` directory |
 | `parse_ligand_list(path)` / `write_ligand_list(records, path)` | Utility | `list[LigandRecord]` / path |
-| `run_structure_modeling(output_dir, ligand_records, cfg, blob_ids=None)` | Build | `build_struct/` directory |
+| `run_structure_modeling(output_dir, ligand_records, cfg, blob_ids=None, on_progress=None)` | Build | `build_struct/` directory |
 | `run_fragment_detection(input_map, output_dir, cfg, emdb_id=None)` | Fragments | output directory |
 | `OutputLayout(root)` | Utility | paths of every output file |
 
@@ -40,6 +40,10 @@ build_dir = run_structure_modeling("output/", ligand_records, cfg)
 the same `output_dir`. Pass `blob_ids` to re-model only some blobs with only the
 given ligands.
 
+Both stages accept an optional `on_progress` callback receiving
+`emap2lig.progress.ProgressEvent` (stage, current, total, message, failed). The
+CLI renders these as tqdm bars; the web GUI stores them on the job for polling.
+
 ## Errors
 
 Pipeline failures raise subclasses of `emap2lig.Emap2ligError`:
@@ -48,6 +52,7 @@ Pipeline failures raise subclasses of `emap2lig.Emap2ligError`:
 |-----------|------|
 | `NoBlobsDetectedError` | The find stage found no blob of usable size |
 | `TooManyBlobsError` | More than 100 blobs (likely noise); blobs are still saved |
+| `JobCancelledError` | A web job was cancelled between pipeline progress events |
 | `Emap2ligError` | No blobs on disk, or no ligand could be prepared, before building |
 
 A single ligand that cannot be prepared (unknown CCD code, invalid SMILES) is

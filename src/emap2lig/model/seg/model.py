@@ -4,9 +4,9 @@ import numpy as np
 import torch
 from torch import nn
 from safetensors.torch import load_file
-from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 
+from ...progress import ProgressCallback, emit
 from ...utils.weights import fetch_weights
 from .munet import MUNetBackbone
 from .threshold import threshold_li
@@ -175,6 +175,7 @@ class SlidingWindowSegmenter(nn.Module):
         roi_size: int,
         batch_size: int,
         device: torch.device,
+        on_progress: ProgressCallback | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, dict[str, float]]:
         """Segment a ``(D, H, W)`` map.
 
@@ -189,6 +190,7 @@ class SlidingWindowSegmenter(nn.Module):
             batch_size=batch_size,
             device=device,
             output_device=torch.device("cpu"),
+            on_progress=on_progress,
         )
         binary, thresholds = self.binarize(probabilities)
         return probabilities[0], binary[0], thresholds
@@ -220,6 +222,7 @@ class SlidingWindowSegmenter(nn.Module):
         output_device=torch.device("cpu"),
         overlap_ratio: float = 0.5,
         num_workers: int = 4,
+        on_progress: ProgressCallback | None = None,
     ) -> torch.Tensor:
         """
         Perform sliding window inference on a large volume using this model.
@@ -232,6 +235,7 @@ class SlidingWindowSegmenter(nn.Module):
             output_device (torch.device): Device to store output on.
             overlap_ratio (float): Overlap ratio between adjacent windows.
             num_workers (int): Number of workers for data loading.
+            on_progress: Optional structured-progress callback.
 
         Returns:
             torch.Tensor: Segmentation map of shape [1, C, D, H, W].
@@ -288,7 +292,18 @@ class SlidingWindowSegmenter(nn.Module):
             collate_fn=custom_collate,
         )
 
-        for batch, batch_coords in tqdm(dataloader, desc="Processing inference"):
+        num_batches = len(dataloader)
+        if num_batches == 0:
+            emit(on_progress, "segment", 1, 1, "No non-empty windows")
+        else:
+            emit(
+                on_progress,
+                "segment",
+                0,
+                num_batches,
+                f"Sliding-window inference ({len(coords)} windows)",
+            )
+        for batch_idx, (batch, batch_coords) in enumerate(dataloader):
             batch = batch.to(device)
             model_output = self(batch)
             if isinstance(model_output, tuple):
@@ -303,6 +318,13 @@ class SlidingWindowSegmenter(nn.Module):
                     model_output[idx]
                 )
                 count_map[:, :, z_start:z_end, y_start:y_end, x_start:x_end] += 1
+            emit(
+                on_progress,
+                "segment",
+                batch_idx + 1,
+                num_batches,
+                f"Processed window batch {batch_idx + 1}/{num_batches}",
+            )
 
         output_map[count_map > 0] /= count_map[count_map > 0]
 

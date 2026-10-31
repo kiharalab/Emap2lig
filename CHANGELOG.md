@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.1](https://github.com/kiharalab/Emap2lig/compare/v0.7.0...v0.7.1) (2026-10-31)
+
+
+### Features
+
+* **web:** native structured job progress, single-GPU queue, and cancel
+* **web:** diffusion-step progress during structure modeling
+* **cli:** tqdm is supplied by the CLI; library code emits ProgressEvents
+
+
+### Bug Fixes
+
+* **web:** failed predictions update the writer failed count
+* **web:** cancel during sampling is not counted as a failed batch
+
 ## [0.7.0](https://github.com/kiharalab/Emap2lig/compare/v0.6.0...v0.7.0) (2026-10-30)
 
 

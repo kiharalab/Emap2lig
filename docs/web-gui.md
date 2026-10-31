@@ -55,13 +55,20 @@ sdists include it, and a source checkout fetches it from the
 version pinned in `.webui-version`:
 
 ```bash
-uv run python scripts/sync_frontend.py          # sync the pinned version
-uv run python scripts/sync_frontend.py 0.7.0    # sync 0.7.0, then pin it
+# npm (default): fetch the version pinned in .webui-version
+uv run python scripts/sync_frontend.py
+uv run python scripts/sync_frontend.py 0.7.0    # fetch 0.7.0 and pin it
+
+# local Emap2lig-web checkout (does not change .webui-version)
+uv run python scripts/sync_frontend.py --local
+uv run python scripts/sync_frontend.py --local /path/to/Emap2lig-web --build
 ```
 
-The script verifies the tarball's npm integrity hash and replaces `frontend/dist/`
-only if the download is valid. The release workflow runs it before `uv build`, so
-commit `.webui-version` (not `dist/`) when updating the UI.
+`--local` copies `dist/` from `../Emap2lig-web`, or from `$EMAP2LIG_WEBUI` if set.
+`--build` runs `bun run build` in that checkout first. The npm path verifies the
+tarball integrity hash and replaces `frontend/dist/` only if the download is valid.
+The release workflow uses the npm path before `uv build`, so commit
+`.webui-version` (not `dist/`) when shipping a published UI.
 
 ## Deployment notes
 
@@ -81,6 +88,10 @@ commit `.webui-version` (not `dist/`) when updating the UI.
 - **Find** — input map, detection options, inspect blobs in Mol*
 - **Build** — ligands (global or per-blob), run modeling, view conformers
 - **Visualization** — load an existing output directory
+
+Jobs share a single GPU worker (queued jobs show a position). A running job
+exposes per-stage progress with an ETA and can be cancelled; Find/Build job IDs
+are restored after a browser reload until the server restarts.
 
 Input formats match the CLI: [Input formats](input-format.md).
 

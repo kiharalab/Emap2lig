@@ -15,3 +15,7 @@ class TooManyBlobsError(Emap2ligError):
 
 class LigandPreparationError(Emap2ligError):
     """A ligand record could not be turned into a :class:`LigandObject`."""
+
+
+class JobCancelledError(Emap2ligError):
+    """A web job was cancelled between pipeline progress events."""
