@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import io
 import os
 import shutil
 import tarfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from ...layout import OutputLayout
@@ -62,23 +63,34 @@ def _gzip_cached(target: Path) -> tuple[Path, int] | None:
 
 
 def _served_file_response(
-    target: Path, media_type: str, filename: str | None = None
-) -> FileResponse:
-    """FileResponse with gzip cache + progress-friendly headers when applicable."""
+    request: Request, target: Path, media_type: str, filename: str | None = None
+) -> Response:
+    """Serve a file with a stable ETag and 304 negotiation.
+
+    The ETag is derived from the *original* file's path/mtime/size (not the
+    gz cache file), so it stays stable across rebuilds of the cache, and
+    unchanged files are re-served as 304 with zero body — which is what keeps
+    tab switches and scene rebuilds from re-downloading maps.
+    """
+    headers = {}
     cached = _gzip_cached(target)
     if cached is None:
-        return FileResponse(
-            path=target, media_type=media_type, filename=filename
-        )
-    gz_path, original_size = cached
+        serve_path, size = target, target.stat().st_size
+    else:
+        gz_path, size = cached
+        serve_path = gz_path
+        headers["Content-Encoding"] = "gzip"
+        headers["X-Original-Size"] = str(size)
+
+    etag = f'"{hashlib.sha1(f"{target}|{target.stat().st_mtime_ns}|{size}".encode()).hexdigest()[:24]}"'
+    headers["ETag"] = etag
+    headers["Cache-Control"] = "no-cache"
+
+    if request.headers.get("if-none-match", "").strip() == etag:
+        return Response(status_code=304, headers=headers)
+
     return FileResponse(
-        path=gz_path,
-        media_type=media_type,
-        filename=filename,
-        headers={
-            "Content-Encoding": "gzip",
-            "X-Original-Size": str(original_size),
-        },
+        path=serve_path, media_type=media_type, filename=filename, headers=headers
     )
 
 
@@ -203,6 +215,7 @@ async def get_cwd():
 
 @router.get("/serve-path")
 async def serve_server_file(
+    request: Request,
     path: str = Query(..., description="Absolute file path on the server"),
 ):
     """Serve an arbitrary file from the server filesystem.
@@ -225,7 +238,7 @@ async def serve_server_file(
 
     suffix = target.suffix.lower()
     media_type = _MIME.get(suffix, "application/octet-stream")
-    return _served_file_response(target, media_type, filename=target.name)
+    return _served_file_response(request, target, media_type, filename=target.name)
 
 
 # MIME types for structural biology formats
@@ -242,7 +255,7 @@ _MIME = {
 
 
 @router.get("/files/{job_id}/{file_path:path}")
-async def serve_file(job_id: str, file_path: str):
+async def serve_file(request: Request, job_id: str, file_path: str):
     """Serve a file from a job's output directory.
 
     The *file_path* is relative to the job's output_dir.
@@ -265,7 +278,7 @@ async def serve_file(job_id: str, file_path: str):
 
     suffix = full_path.suffix.lower()
     media_type = _MIME.get(suffix, "application/octet-stream")
-    return _served_file_response(full_path, media_type, filename=full_path.name)
+    return _served_file_response(request, full_path, media_type, filename=full_path.name)
 
 
 @router.get("/load-results")
