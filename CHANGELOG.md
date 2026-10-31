@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.0](https://github.com/kiharalab/Emap2lig/compare/v0.7.0...v0.8.0) (2026-10-31)
+
+
+### Features
+
+* **web:** background model download with pollable byte progress ([0abbd80](https://github.com/kiharalab/Emap2lig/commit/0abbd80a21229cd06947a8d4797c11eca833c0f7))
+* **web:** native --host option and gzip transfer compression ([f9dc15e](https://github.com/kiharalab/Emap2lig/commit/f9dc15e491b685421a58a665ee6bd4c8f2834fa3))
+* **web:** structured per-task progress (blobs / combinations) ([31415a0](https://github.com/kiharalab/Emap2lig/commit/31415a0612be2de717b9c366ba4101f0ffbf7186))
+
+
+### Bug Fixes
+
+* **web:** ETag/304 negotiation for served files ([8f29651](https://github.com/kiharalab/Emap2lig/commit/8f2965144d62d9ad36909734c022eb00502782c9))
+* **web:** serve .gz files as application/gzip ([01e54b5](https://github.com/kiharalab/Emap2lig/commit/01e54b5a0ca02eb364cbbaad8beafa1000dc3f3c))
+
+
+### Performance Improvements
+
+* **web:** serve large volumes from cached .gz with X-Original-Size ([2e3a420](https://github.com/kiharalab/Emap2lig/commit/2e3a420a73644635689f049ff3019ac08d3b576a))
+
 ## [0.7.0](https://github.com/kiharalab/Emap2lig/compare/v0.6.0...v0.7.0) (2026-10-30)
 
 
