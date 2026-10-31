@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+import threading
 from pathlib import Path
 
 from ..utils.storage import get_home, get_model_dir, set_home
@@ -302,6 +303,122 @@ def _download_models_sync() -> dict[str, bool]:
             logger.warning(f"Failed to download {filename}: {e}")
             results[key] = False
     return results
+
+
+# ---------------------------------------------------------------------------
+# Model download progress (background thread + pollable status)
+# ---------------------------------------------------------------------------
+
+_download_lock = threading.Lock()
+_download_state: dict[str, str | bool | None] = {"active": False, "error": None}
+_hf_file_sizes: dict[str, int | None] = {}
+
+
+def _query_hf_sizes() -> dict[str, int | None]:
+    """Best-effort per-file sizes from the HF Hub metadata (cached)."""
+    if _hf_file_sizes:
+        return _hf_file_sizes
+    try:
+        from huggingface_hub import HfApi
+
+        from emap2lig.utils.weights import MODEL_FILES, WEIGHTS_REPO_ID
+
+        info = HfApi().model_info(WEIGHTS_REPO_ID, files_metadata=True)
+        by_name = {s.rfilename: (s.size or 0) for s in info.siblings}
+        for fn in MODEL_FILES.values():
+            _hf_file_sizes[fn] = by_name.get(fn)
+    except Exception as e:
+        logger.warning(f"Could not fetch HF file sizes: {e}")
+        from emap2lig.utils.weights import MODEL_FILES
+
+        for fn in MODEL_FILES.values():
+            _hf_file_sizes[fn] = None
+    return _hf_file_sizes
+
+
+def _in_flight_bytes(models_dir: Path) -> int:
+    """Bytes of the currently in-flight HF download.
+
+    huggingface_hub 2.x names in-flight files ``<etag>.<random>.incomplete``
+    under ``<models_dir>/.cache/huggingface/download/``. Downloads run
+    serially, so at most one exists; the newest wins.
+    """
+    dl_dir = models_dir / ".cache" / "huggingface" / "download"
+    try:
+        newest: tuple[float, Path] | None = None
+        for p in dl_dir.glob("*.incomplete"):
+            mtime = p.stat().st_mtime
+            if newest is None or mtime > newest[0]:
+                newest = (mtime, p)
+        return newest[1].stat().st_size if newest else 0
+    except OSError:
+        return 0
+
+
+def start_model_download() -> bool:
+    """Kick off a background download if one is not already running."""
+    with _download_lock:
+        if _download_state["active"]:
+            return False
+        _download_state["active"] = True
+        _download_state["error"] = None
+
+    def _run() -> None:
+        try:
+            results = _download_models_sync()
+            if not all(results.values()):
+                _download_state["error"] = "one or more downloads failed (see server log)"
+        except Exception as e:  # surface the failure in /download/status
+            _download_state["error"] = str(e)
+        finally:
+            with _download_lock:
+                _download_state["active"] = False
+
+    threading.Thread(target=_run, daemon=True, name="model-download").start()
+    return True
+
+
+def get_download_status() -> dict:
+    """Per-file download progress: cached flag, total size, downloaded bytes."""
+    from emap2lig.utils.weights import MODEL_FILES, get_model_path
+
+    sizes = _query_hf_sizes()
+    files: list[dict] = []
+    total = downloaded = 0
+    in_flight_assigned = False
+    for key, filename in MODEL_FILES.items():
+        target = get_model_path(filename)
+        cached = target.exists()
+        size = sizes.get(filename)
+        if cached and not size:
+            size = target.stat().st_size
+        if cached:
+            done = size or 0
+        elif not in_flight_assigned:
+            # Serial downloads: the newest .incomplete belongs to the first
+            # uncached file in order.
+            done = _in_flight_bytes(get_model_dir())
+            in_flight_assigned = True
+        else:
+            done = 0
+        files.append(
+            {
+                "key": key,
+                "filename": filename,
+                "cached": cached,
+                "size_bytes": size,
+                "downloaded_bytes": done if done else 0,
+            }
+        )
+        total += size or 0
+        downloaded += done or 0
+    return {
+        "downloading": bool(_download_state["active"]),
+        "error": _download_state["error"],
+        "files": files,
+        "total_bytes": total or None,
+        "downloaded_bytes": downloaded or None,
+    }
 
 
 def check_model_cache() -> dict[str, bool]:

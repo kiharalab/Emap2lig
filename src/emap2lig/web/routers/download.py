@@ -6,16 +6,18 @@ from fastapi import APIRouter
 
 from ..schemas import (
     CacheInfoResponse,
+    DownloadStatusResponse,
     GpuListResponse,
     ModelStatusResponse,
     SetCacheDirRequest,
 )
 from ..services import (
     check_model_cache,
-    download_models,
     get_cache_info,
+    get_download_status,
     list_gpus,
     set_cache_dir,
+    start_model_download,
 )
 
 router = APIRouter(prefix="/api", tags=["download"])
@@ -28,14 +30,20 @@ async def get_model_status():
     return ModelStatusResponse(**status)
 
 
-@router.post("/download-model", response_model=ModelStatusResponse)
+@router.post("/download-model", response_model=DownloadStatusResponse)
 async def trigger_model_download():
-    """Download model weights from HuggingFace Hub.
+    """Start downloading missing model weights in the background.
 
-    Idempotent — skips files already cached.
+    Poll ``/api/download/status`` for per-file progress (bytes/total).
     """
-    status = await download_models()
-    return ModelStatusResponse(**status)
+    start_model_download()
+    return get_download_status()
+
+
+@router.get("/download/status", response_model=DownloadStatusResponse)
+async def download_status():
+    """Per-file download progress (cached flag, total size, downloaded bytes)."""
+    return get_download_status()
 
 
 @router.get("/cache-info", response_model=CacheInfoResponse)

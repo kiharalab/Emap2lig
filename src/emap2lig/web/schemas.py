@@ -89,6 +89,22 @@ class ModelWeightInfo(BaseModel):
     size_mb: float | None = None  # file size in MB, None if not exists
 
 
+class DownloadFileInfo(BaseModel):
+    key: str
+    filename: str
+    cached: bool
+    size_bytes: int | None = None  # from HF Hub metadata
+    downloaded_bytes: int | None = None  # bytes on disk (cached file or .incomplete)
+
+
+class DownloadStatusResponse(BaseModel):
+    downloading: bool
+    error: str | None = None
+    files: list[DownloadFileInfo]
+    total_bytes: int | None = None
+    downloaded_bytes: int | None = None
+
+
 class CacheInfoResponse(BaseModel):
     cache_dir: str
     models: list[ModelWeightInfo]
