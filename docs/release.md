@@ -1,46 +1,36 @@
 # Release process
 
-Emap2lig uses [release-please](https://github.com/googleapis/release-please) to
-prepare releases from Conventional Commit history.
+Releases are published by hand. Bump the version, push an annotated tag, then
+run the **Publish** workflow from GitHub Actions.
 
-## How releases are created
+## How to publish
 
-1. Merge normal pull requests into `main` using Conventional Commit messages.
-   - `feat(...)` creates a minor release candidate.
-   - `fix(...)` and `perf(...)` create patch release candidates.
-   - `docs(...)`, `test(...)`, `chore(...)`, `ci(...)`, `build(...)`, and
-     `refactor(...)` are included as supporting changes when relevant but do not
-     normally trigger a release by themselves.
-2. The **Release Please** workflow opens or updates a release pull request.
-3. Review the release pull request. It updates:
-   - `CHANGELOG.md`
-   - `pyproject.toml`
-   - `.release-please-manifest.json`
-4. Because this project tracks `uv.lock`, run `uv lock` on the release pull
-   request if the version changed, then commit the lockfile update to that same
-   release PR.
-5. Merge the release PR. release-please creates the version tag and GitHub
-   Release.
-6. The tag-triggered **Publish** workflow builds distributions, uploads them to
-   the GitHub Release, and publishes to PyPI.
-7. The web UI bundle is not part of release-please: `publish.yml` fetches
-   `emap2lig-webui@<.webui-version>` from npm before `uv build`. To ship a newer UI,
-   run `scripts/sync_frontend.py <version>` and merge the updated `.webui-version`
-   beforehand (see [Web GUI](web-gui.md#frontend-bundle)).
+1. On `main`, bump the Python package version in `pyproject.toml` and run
+   `uv lock`.
+2. Update `CHANGELOG.md`.
+3. If the release should ship a newer web UI, publish `emap2lig-webui` to npm
+   first, then run `scripts/sync_frontend.py <version>` and commit
+   `.webui-version` (see [Web GUI](web-gui.md#frontend-bundle)).
+4. Commit and push `main`.
+5. Create and push the matching annotated tag:
 
-## Writing release-friendly commits
+   ```bash
+   git tag -a v0.7.1 -m "v0.7.1"
+   git push origin v0.7.1
+   ```
 
-Release notes are generated from commit messages, so make user-facing commits
-specific enough to stand alone in `CHANGELOG.md`.
+6. In GitHub Actions, run **Publish** and set **tag** to that tag
+   (`v0.7.1`). The workflow checks out the tag, fetches
+   `emap2lig-webui@<.webui-version>` from npm, builds the sdist and wheel,
+   creates or updates the GitHub Release, and uploads to PyPI.
 
-Good examples:
+Pushing a tag does not publish by itself.
 
-```text
-feat(cli): cap parallel multiplicity during build inference
-fix(web): preserve existing results during incremental blob modeling
-perf(model): reduce peak memory for large conformer sampling
-```
+## Version files
 
-Avoid vague implementation-only summaries such as `update main.py` or
-`fix stuff`. If a change has important defaults, migration notes, or operational
-impact, add a short commit body so release-please can include useful context.
+| File | Role |
+| --- | --- |
+| `pyproject.toml` | Python package version; must match the `v*` tag |
+| `uv.lock` | Regenerated after the version bump |
+| `CHANGELOG.md` | Hand-written release notes |
+| `.webui-version` | npm `emap2lig-webui` pin fetched by `publish.yml` |
